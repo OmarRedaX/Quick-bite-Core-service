@@ -9,10 +9,10 @@ export async function up(knex: Knex): Promise<void> {
             phone TEXT NOT NULL UNIQUE,
             name TEXT NOT NULL,
             password_hash TEXT NOT NULL,
-            system_role TEXT NOT NULL CHECK(system_role IN ('customer', 'restaurat_user', 'system_admin')),
+            system_role TEXT NOT NULL CHECK(system_role IN ('customer', 'delivery_agent', 'restaurant_user', 'system_admin')),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
             updated_at TIMESTAMP NOT NULL,
-            deleted_at TIMESTAMP NOT NULL
+            deleted_at TIMESTAMP
             );
             
         CREATE INDEX idx_users_email ON users(email);
@@ -25,7 +25,7 @@ export async function up(knex: Knex): Promise<void> {
 export async function down(knex: Knex): Promise<void> {
     // revert whatever was done in the up function
     await knex.raw(`
-        DROP TABLE users;
+        DROP TABLE users; 
         `)
 }
 
