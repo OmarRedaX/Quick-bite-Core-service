@@ -1,7 +1,8 @@
+import path from "path";
 import { config } from "dotenv";
 import {z} from "zod";
 
-config();
+config({path: path.resolve( __dirname, "../../../.env" )});
 
 const schema = z.object({
   PORT: z.string().default("3000"),
@@ -10,7 +11,9 @@ const schema = z.object({
   DB_USER: z.string().default("postgres"),
   DB_PASSWORD: z.string().default("1234"),
   DB_NAME: z.string().default("quickbite_core"),
-  DB_POOL_MAX: z.string().default("10")
+  DB_POOL_MAX: z.string().default("10"),
+  DB_MIGRATION_DIRECTORY: z.string().default("./src/migrations"),
+  DB_MIGRATION_EXTENSION: z.string().default("ts")
 });
 
 const parsed = schema.parse(process.env);
@@ -23,7 +26,9 @@ export const env = {
         user: parsed.DB_USER,
         password: parsed.DB_PASSWORD,
         name: parsed.DB_NAME,
-        poolMax: Number(parsed.DB_POOL_MAX)
+        poolMax: Number(parsed.DB_POOL_MAX),
+        migrationDirectory: path.resolve( __dirname, "../../../", parsed.DB_MIGRATION_DIRECTORY ),
+        migrationExtension: parsed.DB_MIGRATION_EXTENSION
     }
 };
 
