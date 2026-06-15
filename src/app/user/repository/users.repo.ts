@@ -35,6 +35,15 @@ export async function findUserByEmail (email: string): Promise<User | undefined>
     return row ? toENtity(row) : undefined;
 }
 
+export async function findUserExistsByEmailOrPhone (email: string, phone: string): Promise<Boolean> {
+    const result = await db.raw(`
+        SELECT EXISTS (SELECT 1 FROM users Where email = ? OR phone = ?) AS "exists"
+        `, [email, phone]);
+    
+    return result.rows[0].exists;
+        
+}
+
 export async function createUser( user: Partial<User>): Promise <User> {
     const [row] = await db("users").insert({
         email: user.email,
