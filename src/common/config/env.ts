@@ -13,7 +13,11 @@ const schema = z.object({
   DB_NAME: z.string().default("quickbite_core"),
   DB_POOL_MAX: z.string().default("10"),
   DB_MIGRATION_DIRECTORY: z.string().default("./src/migrations"),
-  DB_MIGRATION_EXTENSION: z.string().default("ts")
+  DB_MIGRATION_EXTENSION: z.string().default("ts"),
+  ACCESS_SECRET: z.string(),
+  REFRESH_SERCRET: z.string(),
+  ACCESS_EXPIRES_IN: z.string(),
+  REFRESH_EXPIRES_IN: z.string()
 });
 
 const parsed = schema.parse(process.env);
@@ -29,6 +33,12 @@ export const env = {
         poolMax: Number(parsed.DB_POOL_MAX),
         migrationDirectory: path.resolve( __dirname, "../../../", parsed.DB_MIGRATION_DIRECTORY ),
         migrationExtension: parsed.DB_MIGRATION_EXTENSION
+    },
+    jwt: {
+        accessSecret: parsed.ACCESS_SECRET,
+        refreshSecret: parsed.REFRESH_SERCRET,
+        accessExpiresIn: parsed.ACCESS_EXPIRES_IN,
+        refreshExpiresIn: parsed.REFRESH_EXPIRES_IN
     }
 };
 
