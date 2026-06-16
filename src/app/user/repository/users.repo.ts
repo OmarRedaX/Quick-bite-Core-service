@@ -13,7 +13,7 @@ const USER_COLUMNS = [
     "deleted_at"
 ]
 
-function toENtity (row: any) {
+function toEntity (row: any) {
     return new User({
         id: row.id,
         email: row.email,
@@ -32,13 +32,30 @@ export async function findUserByEmail (email: string): Promise<User | undefined>
         USER_COLUMNS
     ).where("email", email).whereNull("deleted_at").first();
 
-    return row ? toENtity(row) : undefined;
+    return row ? toEntity(row) : undefined;
+}
+
+export async function findUserById (id: number): Promise<User | undefined> {
+    const row = await db("users").select(
+        USER_COLUMNS
+    ).where("id", id).whereNull("deleted_at").first();
+
+    return row ? toEntity(row) : undefined;
 }
 
 export async function findUserExistsByEmailOrPhone (email: string, phone: string): Promise<Boolean> {
     const result = await db.raw(`
         SELECT EXISTS (SELECT 1 FROM users Where email = ? OR phone = ?) AS "exists"
         `, [email, phone]);
+    
+    return result.rows[0].exists;
+        
+}
+
+export async function findUserExistsByEmail (email: string): Promise<Boolean> {
+    const result = await db.raw(`
+        SELECT EXISTS (SELECT 1 FROM users Where email = ?) AS "exists"
+        `, [email]);
     
     return result.rows[0].exists;
         
@@ -55,5 +72,11 @@ export async function createUser( user: Partial<User>): Promise <User> {
         updated_at: user.updatedAt
     }).returning(USER_COLUMNS);
 
-    return toENtity(row);
+    return toEntity(row);
+}
+
+export async function updateUserPassword(id: number, password: string) {
+    await db("users")
+    .where("id", id)
+    .update({ password_hash: password });
 }
