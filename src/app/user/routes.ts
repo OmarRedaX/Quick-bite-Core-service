@@ -5,4 +5,4 @@ import { authenticate } from "../../common/auth/guard";
 
 export const userRoutes = Router();
 
-userRoutes.get("/me", authenticate, userController.getMe);
+userRoutes.get("/me", authenticate("access"), userController.getMe);

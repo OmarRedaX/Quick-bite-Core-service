@@ -1,4 +1,4 @@
-import { toMilliseconds } from "../../../common/utils/time.utils";
+import { getCookieOptions } from "../../../common/utils/cookie.utils";
 import { validateBody } from "../../../common/validation/validate";
 import { ForgetPasswordDTO, LoginDTO, RegisterDTO, ResetPasswordDTO } from "../dto/auth.dto";
 import { authService, AuthService } from "../service/auth.service";
@@ -17,17 +17,8 @@ export class AuthController {
             const result = await this.authService.register(data);
 
             // 3. respond
-            res.cookie("access_token", result.accessToken, {      // Fix: code smell dublicate 
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",  // set the environment variable in config env
-                maxAge: toMilliseconds({ hours: 1 }) // 1 hour
-            });
-            res.cookie("refresh_token", result.refreshToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                maxAge: toMilliseconds({ days: 7 }), // 7 days,
-                // path: "/api/auth/refresh" // TODO: home work do a time function
-            });
+            res.cookie("access_token", result.accessToken, getCookieOptions("access"));
+            res.cookie("refresh_token", result.refreshToken, getCookieOptions("refresh"));
             res.status(201).json(result);
 
         } catch(err) {
@@ -43,17 +34,8 @@ export class AuthController {
             // 2. call service
             const result = await this.authService.login(data)
 
-            res.cookie("access_token", result.accessToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                maxAge: toMilliseconds({ hours: 1 }) // 1 hour
-            });
-            res.cookie("refresh_token", result.refreshToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                maxAge: toMilliseconds({ days: 7 }), // 7 days,
-                path: "/api/auth/refresh" // TODO: home work do a time function
-            });
+            res.cookie("access_token", result.accessToken, getCookieOptions("access"));
+            res.cookie("refresh_token", result.refreshToken, getCookieOptions("refresh"));
 
             // 3. respond
             res.status(200).json(result);
@@ -94,8 +76,20 @@ export class AuthController {
             next(err);
         }
     }
+    
+    refreshToken = async(req: Request, res: Response, next: NextFunction) => {
+         try {
 
-    // TODO: refresh token endpoint
+            const result = await this.authService.refreshToken(req.user?.userId!);
+
+            res.cookie("access_token", result.accessToken, getCookieOptions("access"))
+
+            return res.status(200).json({message: "success"});
+
+        } catch (err) {
+            next(err)
+        }
+    }
 }
 
 export const authController = new AuthController(authService);

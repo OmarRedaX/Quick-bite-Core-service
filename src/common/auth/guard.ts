@@ -1,14 +1,22 @@
 import { NextFunction, Request, Response } from "express";
 import { NotAuthenticated } from "./errors";
-import { verifyAccessToken } from "../../app/auth/utlis";
+import { verifyAccessToken, verifyRefreshToken } from "../../app/auth/utlis";
 
 
-export function authenticate(req: Request, res: Response, next: NextFunction) {
-    const token = req.cookies.access_token;
-    if(!token) {
-        throw NotAuthenticated
+type TokenType = 'access' | 'refresh';
+
+export function authenticate(tokenType: TokenType = 'access') {
+    
+  return (req: Request, res: Response, next: NextFunction) => {
+    const cookieName = tokenType === 'access' ? 'access_token' : 'refresh_token';
+    const token = req.cookies[cookieName];
+    
+    if (!token) {
+      throw NotAuthenticated;
     }
 
-    req.user = verifyAccessToken(token);
+    const verifyFn = tokenType === 'access' ? verifyAccessToken : verifyRefreshToken;
+    req.user = verifyFn(token);
     next();
+  };
 }

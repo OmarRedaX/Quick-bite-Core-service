@@ -17,13 +17,15 @@ const schema = z.object({
   ACCESS_SECRET: z.string(),
   REFRESH_SERCRET: z.string(),
   ACCESS_EXPIRES_IN: z.string(),
-  REFRESH_EXPIRES_IN: z.string()
+  REFRESH_EXPIRES_IN: z.string(),
+  NODE_ENV: z.string()
 });
 
 const parsed = schema.parse(process.env);
 
 export const env = {
     port: Number(parsed.PORT),
+    nodeEnv: parsed.NODE_ENV,
     db: {
         host: parsed.DB_HOST,
         port: Number(parsed.DB_PORT),

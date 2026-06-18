@@ -4,3 +4,4 @@ export const UserAlreadyExistsError = new AppError("User already exists with sam
 export const CannotSignupAsSystemAdmin = new AppError("You Cannot register as a system admin", 403);
 export const IncorrectCredentials = new AppError("Incorrect email or password", 401);
 export const InvalidOTPError = new AppError("Invalid OTP", 401);
+export const UserNotFoundError = new AppError("User not found", 404);
