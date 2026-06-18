@@ -1,9 +1,9 @@
 import { SystemRole } from "../../user/enums";
 import { createUser, findUserByEmail, findUserById, findUserExistsByEmailOrPhone, updateUserPassword } from "../../user/repository/users.repo";
 import { ForgetPasswordDTO, LoginDTO, RegisterDTO, ResetPasswordDTO } from "../dto/auth.dto";
-import { CannotSignupAsSystemAdmin, IncorrectCredentials, InvalidOTPError, UserAlreadyExistsError, UserNotFoundError } from "../errors";
+import { CannotSignupAsSystemAdmin, IncorrectCredentials, InvalidOTPError, InvalidRefreshTokenError, UserAlreadyExistsError, UserNotFoundError } from "../errors";
 import { createPasswordReset, findLatestPasswordResetByUserId, updatePasswordResetConsumedAt } from "../repository/password-reset.repo";
-import { comparePassword, createAccessToken, createRefreshToken, generateOTP, hashOTP, hashPassword } from "../utlis";
+import { comparePassword, createAccessToken, createRefreshToken, generateOTP, hashOTP, hashPassword, verifyRefreshToken } from "../utlis";
 
 export class AuthService {
 
@@ -144,9 +144,16 @@ export class AuthService {
         await updatePasswordResetConsumedAt(reset.id);
     }
 
-    refreshToken = async(userId: number) => {
+    refreshToken = async(refreshToken: string) => {
+        // verify refresh token
+        const token = verifyRefreshToken(refreshToken);
+
+        if(!token){
+            throw InvalidRefreshTokenError
+        }
+
         // find user
-        const user = await findUserById(userId);
+        const user = await findUserById(token.userId);
         if(!user){
             throw UserNotFoundError
         }
