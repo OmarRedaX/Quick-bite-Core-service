@@ -1,3 +1,4 @@
+import { toMilliseconds } from "../../../common/utils/time.utils";
 import { validateBody } from "../../../common/validation/validate";
 import { ForgetPasswordDTO, LoginDTO, RegisterDTO, ResetPasswordDTO } from "../dto/auth.dto";
 import { authService, AuthService } from "../service/auth.service";
@@ -19,12 +20,12 @@ export class AuthController {
             res.cookie("access_token", result.accessToken, {      // Fix: code smell dublicate 
                 httpOnly: true,
                 secure: process.env.NODE_ENV === "production",  // set the environment variable in config env
-                maxAge: 60*60*1000
+                maxAge: toMilliseconds({ hours: 1 }) // 1 hour
             });
             res.cookie("refresh_token", result.refreshToken, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === "production",
-                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days,
+                maxAge: toMilliseconds({ days: 7 }), // 7 days,
                 // path: "/api/auth/refresh" // TODO: home work do a time function
             });
             res.status(201).json(result);
@@ -45,12 +46,12 @@ export class AuthController {
             res.cookie("access_token", result.accessToken, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === "production",
-                maxAge: 60*60*1000
+                maxAge: toMilliseconds({ hours: 1 }) // 1 hour
             });
             res.cookie("refresh_token", result.refreshToken, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === "production",
-                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days,
+                maxAge: toMilliseconds({ days: 7 }), // 7 days,
                 path: "/api/auth/refresh" // TODO: home work do a time function
             });
 
