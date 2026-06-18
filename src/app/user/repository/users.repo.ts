@@ -1,4 +1,5 @@
 import { db } from "../../../common/knex/knex"
+import { UpdateUserDTO } from "../dto/user.dto";
 import { User } from "../entity/user.entity";
 
 const USER_COLUMNS = [
@@ -79,4 +80,15 @@ export async function updateUserPassword(id: number, password: string) {
     await db("users")
     .where("id", id)
     .update({ password_hash: password });
+}
+
+export async function updateUserNameAndPhone(id: number, data: UpdateUserDTO) {
+    const updateData = { ...data };
+
+    const [row] = await db("users")
+    .where("id", id)
+    .update(updateData)
+    .returning(USER_COLUMNS);
+    
+    return toEntity(row);
 }

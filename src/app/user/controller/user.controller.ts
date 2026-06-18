@@ -1,5 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { UserService, userService } from "../service/user.service";
+import { UpdateUserDTO } from "../dto/user.dto";
+import { validateBody } from "../../../common/validation/validate";
 
 
 export class UserController {
@@ -15,8 +17,19 @@ export class UserController {
             next(err)
         }
     }
+   
+    updateUser = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            //vaildate the body
+            const data = await validateBody(UpdateUserDTO, req.body);
 
-    // TODO: update user
+            const result = await this.userService.updateUser(req.user?.userId!, data);
+            return res.status(200).json(result);
+
+        } catch (err) {
+            next(err)
+        }
+    }
 
 }
 

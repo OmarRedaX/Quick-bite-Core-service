@@ -6,3 +6,5 @@ import { authenticate } from "../../common/auth/guard";
 export const userRoutes = Router();
 
 userRoutes.get("/me", authenticate, userController.getMe);
+
+userRoutes.patch('/me', authenticate, userController.updateUser);
