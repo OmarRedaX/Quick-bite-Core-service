@@ -144,28 +144,13 @@ export class AuthService {
         await updatePasswordResetConsumedAt(reset.id);
     }
 
-    refreshToken = async(refreshToken: string) => {
-        // verify refresh token
-        const token = verifyRefreshToken(refreshToken);
-
-        if(!token){
-            throw InvalidRefreshTokenError
+    refresh = async(refreshToken: string) => {
+        if (!refreshToken) {
+            throw IncorrectCredentials;
         }
-
-        // find user
-        const user = await findUserById(token.userId);
-        if(!user){
-            throw UserNotFoundError
-        }
-
-        // generate tokens
-        const payload = {userId: user.id, email: user.email, role: user.systemRole};
-        const accessToken = createAccessToken(payload);
-        
-        // return data
-        return {
-            accessToken,
-        }
+        const payload = verifyRefreshToken(refreshToken);
+        const accessToken = createAccessToken({userId: payload.userId, role: payload.role, email: payload.email});
+        return {accessToken};
     }
 }
 

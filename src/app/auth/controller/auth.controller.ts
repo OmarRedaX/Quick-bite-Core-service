@@ -1,8 +1,10 @@
-import { getCookieOptions } from "../../../common/utils/cookie.utils";
-import { validateBody } from "../../../common/validation/validate";
-import { ForgetPasswordDTO, LoginDTO, RegisterDTO, ResetPasswordDTO } from "../dto/auth.dto";
-import { authService, AuthService } from "../service/auth.service";
-import {Request, Response, NextFunction } from "express";
+import {NextFunction, Request, Response} from "express";
+import {validateBody} from "../../../common/validation/validate";
+import {RegisterDTO, LoginDTO, ForgetPasswordDTO, ResetPasswordDTO} from "../dto/auth.dto";
+import {AuthService, authService} from "../service/auth.service";
+import {setAuthCookies} from "../../../common/utils/cookie.utils";
+import {env} from "../../../common/config/env";
+import {toMs} from "../../../common/utils/time.utils";
 
 export class AuthController {
     constructor(private readonly authService: AuthService) {
@@ -17,8 +19,7 @@ export class AuthController {
             const result = await this.authService.register(data);
 
             // 3. respond
-            res.cookie("access_token", result.accessToken, getCookieOptions("access"));
-            res.cookie("refresh_token", result.refreshToken, getCookieOptions("refresh"));
+            setAuthCookies(res, result.accessToken, result.refreshToken);
             res.status(201).json(result);
 
         } catch(err) {
@@ -34,8 +35,7 @@ export class AuthController {
             // 2. call service
             const result = await this.authService.login(data)
 
-            res.cookie("access_token", result.accessToken, getCookieOptions("access"));
-            res.cookie("refresh_token", result.refreshToken, getCookieOptions("refresh"));
+            setAuthCookies(res, result.accessToken, result.refreshToken);
 
             // 3. respond
             res.status(200).json(result);
@@ -80,11 +80,13 @@ export class AuthController {
     refreshToken = async(req: Request, res: Response, next: NextFunction) => {
          try {
 
-            const result = await this.authService.refreshToken(req.cookies.refresh_token);
-
-            res.cookie("access_token", result.accessToken, getCookieOptions("access"))
-
-            return res.status(200).json({message: "success"});
+            const result = await this.authService.refresh(req.cookies.refresh_token);
+            res.cookie("access_token", result.accessToken, {
+                httpOnly: true,
+                secure: env.isProduction,
+                maxAge: toMs(1, 'h'),
+            });
+            res.status(200).json({message: "success"});
 
         } catch (err) {
             next(err)
