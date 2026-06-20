@@ -56,7 +56,29 @@ export async function createCustomerAddress ( customerAddress: Partial<CustomerA
     return toEntity(row);
 }
 
-export async function findCustomerAddress (id: string): Promise<CustomerAddress | undefined> {
-    const row = await db('customer_addresses').where({ id })
+export async function findCustomerAddress (id: number): Promise<CustomerAddress | undefined> {
+    const [row] = await db('customer_addresses').where("user_id", id).returning(CUSTOMER_ADDRESS_COLUMNS);
     return row ? toEntity(row) : undefined
+}
+
+export async function updateCustomerAddress (id: number, userId: number, data: Partial<CustomerAddress>) {
+    const row = await db('customer_addresses').where("id", id).andWhere("user_id", userId).update({
+        label: data.label,
+        country: data.country,
+        city: data.city,
+        street: data.street,
+        building: data.building,
+        apartment_number: data.apartmentNumber,
+        type: data.type,
+        lat: data.lat,
+        lng: data.lng,
+        is_default: data.isDefault,
+        updated_at: new Date()
+    }).returning(CUSTOMER_ADDRESS_COLUMNS);
+    
+    return row ? toEntity(row[0]) : undefined
+}
+
+export async function deleteCustomerAddress(id: number, userId: number) {
+    await db('customer_addresses').where("id", id).andWhere("user_id", userId).del()
 }

@@ -1,7 +1,7 @@
 import { findUserById } from "../../user/repository/users.repo";
 import { CreateCustomerAddressDto } from "../dto/customer-address.dto";
 import { UserNotFound } from "../errors";
-import { createCustomerAddress } from "../repository/customer-address.repo";
+import { createCustomerAddress, deleteCustomerAddress, findCustomerAddress, updateCustomerAddress } from "../repository/customer-address.repo";
 
 
 export class CustomerAddressService {
@@ -25,6 +25,51 @@ export class CustomerAddressService {
         return {
             message: "Address added",
             address: createdCustomerAddress
+        };
+    }
+
+    getCustomerAddress = async(userId: number) => {
+        // find user
+        const user = await findUserById(userId);
+        if(!user) {
+            throw UserNotFound;
+        }
+
+        // return customer address using userId
+        const data = await findCustomerAddress(user.id);
+     
+        return {
+            data: data
+        }
+    }
+
+    updateCustomerAddress = async(userId: number, addressId: number, data: Partial<CreateCustomerAddressDto>) => {
+        // find user
+        const user = await findUserById(userId);
+        if(!user) {
+            throw UserNotFound;
+        }
+
+        // update customer address
+        const updatedAddress = await updateCustomerAddress(addressId, userId, data);
+        return {
+            message: "Address updated",
+            address: updatedAddress
+        };
+    }
+
+    deleteCustomerAddress = async(userId: number, addressId: number) => {
+        // find user
+        const user = await findUserById(userId);
+        if(!user) {
+            throw UserNotFound;
+        }
+
+        // delete customer address
+        await deleteCustomerAddress(addressId, userId);
+
+        return {
+            message: "Address deleted"
         };
     }
 }
