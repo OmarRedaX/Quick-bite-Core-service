@@ -1,16 +1,12 @@
+type TimeUnit = 'd' | 'h' | 'm' | 's';
 
-export interface Duration {
-    days?: number;
-    hours?: number;
-    minutes?: number;
-    seconds?: number;
-}
+const multipliers: Record<TimeUnit, number> = {
+    s: 1000,
+    m: 60 * 1000,
+    h: 60 * 60 * 1000,
+    d: 24 * 60 * 60 * 1000,
+};
 
-export function toMilliseconds(duration: Duration): number {
-  return (
-        (duration.days ?? 0) * 24 * 60 * 60 * 1000 +
-        (duration.hours ?? 0) * 60 * 60 * 1000 +
-        (duration.minutes ?? 0) * 60 * 1000 +
-        (duration.seconds ?? 0) * 1000
-    );
+export function toMs(value: number, unit: TimeUnit): number {
+    return value * multipliers[unit];
 }
