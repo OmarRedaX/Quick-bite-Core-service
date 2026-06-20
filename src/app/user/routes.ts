@@ -1,10 +1,9 @@
-import { Router } from "express";
-import { userController } from "./controller/user.controller";
-import { authenticate } from "../../common/auth/guard";
+import {Router} from "express";
+import {authenticate} from "../../common/auth/guard";
+import {userController} from "./controller/user.controller";
 
+export const userRouter = Router();
 
-export const userRoutes = Router();
-
-userRoutes.get("/me", authenticate, userController.getMe);
-
-userRoutes.patch('/me', authenticate, userController.updateUser);
+// protect
+userRouter.get('/me', authenticate, userController.getMe);
+userRouter.patch('/me', authenticate, userController.updateMe);

@@ -82,13 +82,11 @@ export async function updateUserPassword(id: number, password: string) {
     .update({ password_hash: password });
 }
 
-export async function updateUserNameAndPhone(id: number, data: UpdateUserDTO) {
-    const updateData = { ...data };
+export async function updateUser(id: number, data: Partial<{name: string, phone: string}>): Promise<User> {
+    const [row] = await db("users").where("id", id).update({
+        ...data,
+        updated_at: new Date(),
+    }).returning(USER_COLUMNS);
 
-    const [row] = await db("users")
-    .where("id", id)
-    .update(updateData)
-    .returning(USER_COLUMNS);
-    
     return toEntity(row);
 }

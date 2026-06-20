@@ -3,7 +3,6 @@ import { UserService, userService } from "../service/user.service";
 import { UpdateUserDTO } from "../dto/user.dto";
 import { validateBody } from "../../../common/validation/validate";
 
-
 export class UserController {
     constructor(private readonly userService: UserService){}
 
@@ -18,13 +17,13 @@ export class UserController {
         }
     }
    
-    updateUser = async (req: Request, res: Response, next: NextFunction) => {
+    updateMe = async (req: Request, res: Response, next: NextFunction) => {
         try {
             //vaildate the body
             const data = await validateBody(UpdateUserDTO, req.body);
 
-            const result = await this.userService.updateUser(req.user?.userId!, data);
-            return res.status(200).json(result);
+            const user = await this.userService.updateProfile(req.user?.userId!, data);
+            res.status(200).json({message: "Profile updated", user});
 
         } catch (err) {
             next(err)

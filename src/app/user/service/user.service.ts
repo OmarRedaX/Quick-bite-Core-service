@@ -1,6 +1,6 @@
 import { UpdateUserDTO } from "../dto/user.dto"
 import { UserNotFoundError } from "../errors"
-import { findUserById, updateUserNameAndPhone } from "../repository/users.repo"
+import { findUserById, updateUser} from "../repository/users.repo"
 
 
 export class UserService {
@@ -22,27 +22,19 @@ export class UserService {
         }
     }
 
-    updateUser = async(userId: number , data: UpdateUserDTO) => {
-         // 1. find user by ID
-        const user = await findUserById(userId)
-        if(!user) {
-            throw UserNotFoundError
+    updateProfile = async (userId: number, data: UpdateUserDTO) => {
+        const user = await findUserById(userId);
+        if (!user) {
+            throw UserNotFoundError;
         }
-
-        // 2. update user name & phone
-        const updatedUser = await updateUserNameAndPhone(user.id, data);
-
-        // return user data
+        const updated = await updateUser(userId, data);
         return {
-            "message": "Profile updated",
-            user:{
-                id: updatedUser.id,
-                email: updatedUser.email,
-                name: updatedUser.name,
-                phone: updatedUser.phone,
-                systemRole: updatedUser.systemRole
-            }
-        }
+            id: updated.id,
+            email: updated.email,
+            name: updated.name,
+            phone: updated.phone,
+            systemRole: updated.systemRole,
+        };
     }
 
 }
