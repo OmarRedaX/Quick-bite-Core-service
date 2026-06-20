@@ -18,14 +18,12 @@ const schema = z.object({
   REFRESH_SERCRET: z.string(),
   ACCESS_EXPIRES_IN: z.string(),
   REFRESH_EXPIRES_IN: z.string(),
-  NODE_ENV: z.string()
 });
 
 const parsed = schema.parse(process.env);
 
 export const env = {
     port: Number(parsed.PORT),
-    nodeEnv: parsed.NODE_ENV,
     db: {
         host: parsed.DB_HOST,
         port: Number(parsed.DB_PORT),
@@ -41,6 +39,9 @@ export const env = {
         refreshSecret: parsed.REFRESH_SERCRET,
         accessExpiresIn: parsed.ACCESS_EXPIRES_IN,
         refreshExpiresIn: parsed.REFRESH_EXPIRES_IN
-    }
+    },
+    isProduction: process.env.NODE_ENV === "production",
+    // redis
+    // payment
 };
 
