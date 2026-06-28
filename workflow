@@ -2,7 +2,7 @@ Database migrations
 * implement bottom up approach
 Create Entity classes that represent DB
 Create repository queries
-Create service functions
+Create/update service functions
 Create controllers
 Create routes
 insert it into src/routes if it is the first time we create this router in the module
