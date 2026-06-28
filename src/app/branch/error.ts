@@ -1,3 +1,3 @@
 import { AppError } from "../../common/error/AppError";
 
-export const RestaurantNotFoundError = new AppError("Restaurant not found",404);
+export const BranchNotFoundError = new AppError("Branch not found",404);

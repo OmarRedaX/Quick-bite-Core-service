@@ -17,6 +17,7 @@ export class Branch {
     commission: number;
     createdAt: Date;
     updatedAt: Date;
+    location?: string;
 
     constructor(data: Partial<Branch>) {
         this.id = data.id!;
