@@ -3,12 +3,11 @@ import { RegisterRestaurantDTO } from "../../auth/dto/auth.dto";
 import { Restaurant } from "../entity/restaurant.entity";
 import { RestaurantStatus } from "../enums";
 import { createRestaurant, findAllRestaurants, findRestaurantById, updateRestaurant, updateRestaurantStatus, } from "../repository/restaurant.repo";
-import { RestaurantNotFoundError } from "../../branch/error";
 import { CreateRestaurantDTO, UpdateRestaurantDTO, UpdateRestaurantStatusDTO } from "../dto/restaurant.dto";
 import { SystemRole } from "../../user/enums";
 import { UnauthorizedError } from "../../../common/auth/errors";
 import { createUser, findUserExistsByEmailOrPhone } from "../../user/repository/users.repo";
-import { OwnerAlreadyExistsError } from "../error";
+import { OwnerAlreadyExistsError, RestaurantNotFoundError } from "../error";
 import { hashPassword } from "../../auth/utlis";
 import { db } from "../../../common/knex/knex";
 
