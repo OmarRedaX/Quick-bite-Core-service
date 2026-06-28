@@ -1,0 +1,5 @@
+import { AppError } from "../../common/error/AppError";
+
+
+const RestaurantNotFoundError = new AppError("Restaurant not found", 404);
+export const OwnerAlreadyExistsError = new AppError('User with this email or phone already exists', 409);
