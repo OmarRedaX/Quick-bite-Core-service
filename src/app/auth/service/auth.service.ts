@@ -1,8 +1,12 @@
 import { db } from "../../../common/knex/knex";
-import { createRestaurant } from "../../restaurant/repository/restaurant.repo";
+import { toMs } from "../../../common/utils/time.utils";
+import { findBranchIdsByMemberId } from "../../rbac/repo/member-branch.repo";
+import { activateMemberByUserId, findRestaurantMemberWithRole } from "../../rbac/repo/restaurant-member.repo";
+import { memberService, MemberService } from "../../rbac/service/member.service";
 import { restaurantService, RestaurantService } from "../../restaurant/service/restaurant.service";
 import { SystemRole } from "../../user/enums";
 import { createUser, findUserByEmail, findUserExistsByEmailOrPhone, updateUserPassword } from "../../user/repository/users.repo";
+import { userService, UserService } from "../../user/service/user.service";
 import { ForgetPasswordDTO, LoginDTO, RegisterDTO, ResetPasswordDTO } from "../dto/auth.dto";
 import { CannotSignupAsSystemAdmin, IncorrectCredentials, InvalidOTPError, RestaurantDataRequiredError, UserAlreadyExistsError } from "../errors";
 import { createPasswordReset, findLatestPasswordResetByUserId, updatePasswordResetConsumedAt } from "../repository/password-reset.repo";
@@ -10,40 +14,29 @@ import { comparePassword, createAccessToken, createRefreshToken, generateOTP, ha
 
 export class AuthService {
 
-    constructor(private readonly restaurantService: RestaurantService) {}
+    constructor(
+        private readonly userService: UserService, 
+        private readonly memberService: MemberService, 
+        private readonly restaurantService: RestaurantService
+    ) {}
 
     register = async(data: RegisterDTO) => {
         if (data.role == SystemRole.SYSTEM_ADMIN) {
             throw CannotSignupAsSystemAdmin
         }
 
-        // 1. check if user exists by email or phone
-        const existing = await findUserExistsByEmailOrPhone(data.email, data.phone);
-
-        // 2. if exists we throw an console.error
-        if (existing) {
-            throw UserAlreadyExistsError;
-        }
-
-        // 3. hashPawssword
-        const hashedPassword = await hashPassword(data.password);
-
-        // 4. create user
-        const now = new Date();
-
         const trx = await db.transaction();
         let user;
         let restaurant;
+        let restaurantMemberInfo: {restaurantId?: number, restaurantRole?: string, branchIds?: number[]} = {};
 
         try{
-            user = await createUser({
+            user = await this.userService.create({
                 email: data.email,
                 phone: data.phone,
                 name: data.name,
-                passwordHash: hashedPassword,
+                password: data.password,
                 systemRole: data.role,
-                createdAt: now,
-                updatedAt: now
             }, trx);
 
             // check if the type of user is restaurant then call restaurant service to create a new restaurant
@@ -52,6 +45,13 @@ export class AuthService {
                     throw RestaurantDataRequiredError;
                 }
                 restaurant = await this.restaurantService.create(user.id, data.restaurant, trx)
+                // insert the member
+                await this.memberService.createOwnerMember(restaurant.id, user.id, trx);
+                restaurantMemberInfo = {
+                    restaurantId: restaurant.id,
+                    restaurantRole: 'owner',
+                    branchIds: []
+                };
             }
 
             await trx.commit();
@@ -62,8 +62,8 @@ export class AuthService {
         }
         
 
-        // 5. create access token , refresh token
-        const payload = {userId: user.id, email: user.email, role: user.systemRole};
+        // 5. create access token , refresh token and set the member info for jwt payload
+        const payload = {userId: user.id, email: user.email, role: user.systemRole, ...restaurantMemberInfo};
         const accessToken = createAccessToken(payload);
         const refreshToken = createRefreshToken(payload);
 
@@ -100,8 +100,20 @@ export class AuthService {
             throw IncorrectCredentials;
         }
 
+        let restaurantMemberInfo = null;
+        if(user.systemRole === SystemRole.RESTAURANT_USER) {
+            const memberData = await findRestaurantMemberWithRole(user.id);
+            const branchIds = await findBranchIdsByMemberId(memberData.member.id);
+            if(memberData) {
+                restaurantMemberInfo = {
+                    restaurantId: memberData.member.restaurantId,
+                    restaurantRole: memberData.roleName,
+                    branchIds
+                }
+            }
+        }
         // generate tokens
-        const payload = {userId: user.id, email: user.email, role: user.systemRole};
+        const payload = {userId: user.id, email: user.email, role: user.systemRole, ...restaurantMemberInfo};
         const accessToken = createAccessToken(payload);
         const refreshToken = createRefreshToken(payload);
 
@@ -118,7 +130,7 @@ export class AuthService {
                 systemRole: user.systemRole,
                 createdAt: user.createdAt
             }
-        }
+        };
     }
 
     forgetPassword = async(data: ForgetPasswordDTO) => {
@@ -137,7 +149,7 @@ export class AuthService {
         await createPasswordReset({
             userId: user.id,
             otpHash: hashedOtp,
-            expiresAt: new Date( Date.now() + (10*60*1000) ), 
+            expiresAt: new Date( Date.now() + toMs(10, 'm') ), 
             createdAt: new Date()
         })
 
@@ -170,6 +182,8 @@ export class AuthService {
 
         // 5. update reset password
         await updatePasswordResetConsumedAt(reset.id);
+
+        return user;
     }
 
     refresh = async(refreshToken: string) => {
@@ -180,7 +194,18 @@ export class AuthService {
         const accessToken = createAccessToken({userId: payload.userId, role: payload.role, email: payload.email});
         return {accessToken};
     }
+
+    acceptInvite = async(data: ResetPasswordDTO) => {
+        // find user by email
+        // find password_Reset table by user id
+        // verify otp
+        // update password
+        const user = await this.resetPassword(data);
+
+        // activate member
+        await activateMemberByUserId(user.id);
+    }
 }
 
 
-export const authService = new AuthService(restaurantService);
+export const authService = new AuthService(userService, memberService, restaurantService);

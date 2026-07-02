@@ -11,6 +11,10 @@ export interface JwtPayLoad {
     userId: number;
     email: string;
     role: string;
+    // for restaurant user only
+    restaurantId?: number;
+    restaurantRole?: string;
+    branchIds?: number[];
 }
 
 // ----- token creation
