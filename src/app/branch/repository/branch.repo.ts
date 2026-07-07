@@ -1,107 +1,120 @@
 import { Knex } from "knex";
-import { db } from "../../../common/knex/knex";
+import { db } from "../../../lib/knex/knex";
 import { Branch } from "../entity/branch.entity";
 
-
 const BRANCH_COLUMNS = [
-    "id",
-    "restaurant_id",
-    "country_code",
-    "address_text",
-    "label",
-    "lat",
-    "lng",
-    "is_active",
-    "opens_at",
-    "closes_at",
-    "accept_orders",
-    "delivery_radius",
-    "currency",
-    "commission",
-    "created_at",
-    "updated_at"
+  "id",
+  "restaurant_id",
+  "country_code",
+  "address_text",
+  "label",
+  "lat",
+  "lng",
+  "is_active",
+  "opens_at",
+  "closes_at",
+  "accept_orders",
+  "delivery_radius",
+  "currency",
+  "commission",
+  "created_at",
+  "updated_at",
 ];
 
 function toEntity(row: any) {
-    return new Branch({
-        id: row.id,
-        restaurantId: row.restaurant_id,
-        countryCode: row.country_code,
-        addressText: row.address_text,
-        label: row.label,
-        lat: row.lat,
-        lng: row.lng,
-        isActive: row.is_active,
-        opensAt: row.opens_at,
-        closesAt: row.closes_at,
-        acceptOrders: row.accept_orders,
-        deliveryRadius: row.delivery_radius,
-        currency: row.currency,
-        commission: row.commission,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-        location: row.location
-    });
+  return new Branch({
+    id: row.id,
+    restaurantId: row.restaurant_id,
+    countryCode: row.country_code,
+    addressText: row.address_text,
+    label: row.label,
+    lat: row.lat,
+    lng: row.lng,
+    isActive: row.is_active,
+    opensAt: row.opens_at,
+    closesAt: row.closes_at,
+    acceptOrders: row.accept_orders,
+    deliveryRadius: row.delivery_radius,
+    currency: row.currency,
+    commission: row.commission,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    location: row.location,
+  });
 }
 
-export async function createBranch(data: Partial<Branch>, conn: Knex = db): Promise<Branch> {
-    const [row] = await conn("restaurant_branches").insert({
-        restaurant_id: data.restaurantId,
-        country_code: data.countryCode,
-        address_text: data.addressText,
-        label: data.label,
-        lat: data.lat,
-        lng: data.lng,
-        is_active: data.isActive,
-        opens_at: data.opensAt,
-        closes_at: data.closesAt,
-        accept_orders: data.acceptOrders,
-        delivery_radius: data.deliveryRadius,
-        currency: data.currency,
-        commission: data.commission,
-        created_at: data.createdAt,
-        updated_at: data.updatedAt
-    }).returning(BRANCH_COLUMNS);
-    return toEntity(row);
+export async function createBranch( data: Partial<Branch>, conn: Knex = db ): Promise<Branch> {
+  const [row] = await conn("restaurant_branches")
+    .insert({
+      restaurant_id: data.restaurantId,
+      country_code: data.countryCode,
+      address_text: data.addressText,
+      label: data.label,
+      lat: data.lat,
+      lng: data.lng,
+      is_active: data.isActive,
+      opens_at: data.opensAt,
+      closes_at: data.closesAt,
+      accept_orders: data.acceptOrders,
+      delivery_radius: data.deliveryRadius,
+      currency: data.currency,
+      commission: data.commission,
+      created_at: data.createdAt,
+      updated_at: data.updatedAt,
+    })
+    .returning(BRANCH_COLUMNS);
+  return toEntity(row);
 }
 
-export async function findBranchesByRestaurant (restaurantId: number): Promise<Branch[]> {
-    const result = await db("restaurant_branches").select(BRANCH_COLUMNS).where("restaurant_id", restaurantId);
-    return result.map(toEntity);
+export async function findBranchesByRestaurant( restaurantId: number, ): Promise<Branch[]> {
+  const result = await db("restaurant_branches")
+    .select(BRANCH_COLUMNS)
+    .where("restaurant_id", restaurantId);
+  return result.map(toEntity);
 }
 
-export async function findBranchById (id: number): Promise<Branch | undefined> {
-    const row = await db("restaurant_branches").select(BRANCH_COLUMNS).where("id", id).first();
-    return row ? toEntity(row) : undefined;
+export async function findBranchById(id: number): Promise<Branch | undefined> {
+  const row = await db("restaurant_branches")
+    .select(BRANCH_COLUMNS)
+    .where("id", id)
+    .first();
+  return row ? toEntity(row) : undefined;
 }
 
-export async function updateBranch (id: number, data: Record<string, any>): Promise<Branch> {
-    const [row] = await db("restaurant_branches").where("id", id).update({
-        label: data.label,
-        address_text: data.addressText,
-        lat: data.lat,
-        lng: data.lng,
-        opens_at: data.opensAt,
-        closes_at: data.closesAt,
-        delivery_radius: data.deliveryRadius,
-        currency: data.currency,
-        accept_orders: data.acceptOrders,
-        updated_at: new Date(),
-    }).returning(BRANCH_COLUMNS);
-    return toEntity(row);
+export async function updateBranch( id: number, data: Record<string, any> ): Promise<Branch> {
+  const [row] = await db("restaurant_branches")
+    .where("id", id)
+    .update({
+      label: data.label,
+      address_text: data.addressText,
+      lat: data.lat,
+      lng: data.lng,
+      opens_at: data.opensAt,
+      closes_at: data.closesAt,
+      delivery_radius: data.deliveryRadius,
+      currency: data.currency,
+      accept_orders: data.acceptOrders,
+      updated_at: new Date(),
+    })
+    .returning(BRANCH_COLUMNS);
+  return toEntity(row);
 }
 
-export async function updateBranchStatus(id: number, data: { isActive?: boolean; commission?: number }): Promise<Branch> {
-    const [row] = await db("restaurant_branches").where("id", id).update({
-        is_active: data.isActive,
-        commission: data.commission,
-        updated_at: new Date(),
-    }).returning(BRANCH_COLUMNS);
-    return toEntity(row);
+export async function updateBranchStatus( id: number, data: { isActive?: boolean; commission?: number }, ): Promise<Branch> {
+  const [row] = await db("restaurant_branches")
+    .where("id", id)
+    .update({
+      is_active: data.isActive,
+      commission: data.commission,
+      updated_at: new Date(),
+    })
+    .returning(BRANCH_COLUMNS);
+  return toEntity(row);
 }
 
-export async function findNearbyBranches(lat: number, lng: number): Promise<Branch[]> {
-    const result = await db.raw(`
+export async function findNearbyBranches( lat: number, lng: number, ): Promise<Branch[]> {
+  const result = await db.raw(
+    `
         SELECT 
        b.id,
        b.restaurant_id,
@@ -117,8 +130,9 @@ export async function findNearbyBranches(lat: number, lng: number): Promise<Bran
        FROM restaurant_branches b JOIN restaurants r ON  b.restaurant_id = r.id
        WHERE b.is_active = true AND r.status ='active'
        AND ST_DWithin(b.location, ST_MakePoint(?, ?)::geography, b.delivery_radius*1000)
-        `,[lng, lat]);
-        
-    return result.rows; 
-}
+        `,
+    [lng, lat],
+  );
 
+  return result.rows;
+}

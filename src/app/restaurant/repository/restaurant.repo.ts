@@ -1,5 +1,5 @@
 import { Knex } from "knex";
-import { db } from "../../../common/knex/knex";
+import { db } from "../../../lib/knex/knex";
 import { Restaurant } from "../entity/restaurant.entity";
 import { RestaurantStatus } from "../enums";
 
@@ -35,7 +35,7 @@ export async function findAllRestaurants(): Promise<Restaurant[]> {
 }
 
 // find restaurant by id
-export async function findRestaurantById(id: number): Promise<Restaurant | undefined> {
+export async function findRestaurantById( id: number, ): Promise<Restaurant | undefined> {
   const row = await db("restaurants")
     .select(RESTAURANT_COLUMNS)
     .where("id", id)
@@ -43,7 +43,7 @@ export async function findRestaurantById(id: number): Promise<Restaurant | undef
   return row ? toEntity(row) : undefined;
 }
 
-export async function createRestaurant( data: Partial<Restaurant>, conn: Knex = db): Promise<Restaurant> {
+export async function createRestaurant( data: Partial<Restaurant>, conn: Knex = db, ): Promise<Restaurant> {
   const [row] = await conn("restaurants")
     .insert({
       owner_id: data.ownerId,
@@ -59,7 +59,7 @@ export async function createRestaurant( data: Partial<Restaurant>, conn: Knex = 
   return toEntity(row);
 }
 
-export async function updateRestaurant (id: number, data: {name?: string, logoURL?: string, primaryCountry?: string}): Promise<Restaurant> {
+export async function updateRestaurant( id: number, data: { name?: string; logoURL?: string; primaryCountry?: string }, ): Promise<Restaurant> {
   const [row] = await db("restaurants")
     .where("id", id)
     .update({
@@ -72,7 +72,7 @@ export async function updateRestaurant (id: number, data: {name?: string, logoUR
   return toEntity(row);
 }
 
-export async function updateRestaurantStatus(id: number, status: RestaurantStatus): Promise<Restaurant> {
+export async function updateRestaurantStatus( id: number, status: RestaurantStatus, ): Promise<Restaurant> {
   const [row] = await db("restaurants")
     .where("id", id)
     .update({

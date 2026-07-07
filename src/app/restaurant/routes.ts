@@ -1,10 +1,13 @@
 import { Router } from "express";
-import { restaurantController } from "./controller/restaurant.controller";
-import { authenticate } from "../../common/auth/guard";
-import { rbac, requireRestaurantMember } from "../../common/auth/rbac";
-
+import { authenticate } from "../../lib/auth/guard";
+import { rbac, requireRestaurantMember } from "../../lib/auth/rbac";
+import { TOKENS } from "../../lib/di/tokens";
+import { RestaurantController } from "./controller/restaurant.controller";
+import { container } from "../../lib/di/container";
 
 export const restaurantRouter = Router();
+  
+const restaurantController = container.resolve<RestaurantController>(TOKENS.RestaurantController);
 
 restaurantRouter.get("/", restaurantController.getAll);
 restaurantRouter.get("/:id", restaurantController.getById);
@@ -12,11 +15,15 @@ restaurantRouter.get("/:id", restaurantController.getById);
 restaurantRouter.post("/", authenticate, restaurantController.create); // system_admin only, checked in service
 
 restaurantRouter.patch(
-    "/:id",
-    authenticate,
-    requireRestaurantMember("id"),
-    rbac({resource:"core:restaurant", action:"update"}),
-    restaurantController.update
+  "/:id",
+  authenticate,
+  requireRestaurantMember("id"),
+  rbac({ resource: "core:restaurant", action: "update" }),
+  restaurantController.update,
 );
 
-restaurantRouter.patch("/:id/status", authenticate, restaurantController.updateStatus); // system_admin only, checked in service
+restaurantRouter.patch(
+  "/:id/status",
+  authenticate,
+  restaurantController.updateStatus,
+); // system_admin only, checked in service

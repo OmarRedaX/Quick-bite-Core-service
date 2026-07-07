@@ -1,7 +1,9 @@
 import { NextFunction, Request, Response } from "express";
 import { NotAuthenticated } from "./errors";
 import { SystemRole } from "../../app/user/enums";
-import { permissionCacheService } from "../../app/rbac/service/permission-cache.service";
+import { PermissionCacheService } from "../../app/rbac/service/permission-cache.service";
+import { TOKENS } from "../di/tokens";
+import { container } from "../di/container";
 
 export interface RBACOptions {
     resource: string;
@@ -32,6 +34,7 @@ export function rbac(options: RBACOptions) {
             // if restaurant user
             if(req.user.role == SystemRole.RESTAURANT_USER){
                 // 1. fetch permission 
+                const permissionCacheService = container.resolve<PermissionCacheService>(TOKENS.PermissionCacheService);
                 const permission = await permissionCacheService.getPermission(req.user.restaurantRole!);
                 // 2. check if the permissions has the action for this resource
                 if(!permissionCacheService.hasPermission(permission, resource, action)){
