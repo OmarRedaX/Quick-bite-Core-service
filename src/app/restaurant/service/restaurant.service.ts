@@ -11,6 +11,7 @@ import { UserService } from "../../user/service/user.service";
 import { RestaurantNotFoundError } from "../error";
 import { inject, injectable } from "tsyringe";
 import { TOKENS } from "../../../lib/di/tokens";
+import { buildPaginationResult, FilterParams, PaginationParams } from "../../../lib/http/pagination/cursor-pagination";
 
 @injectable()
 export class RestaurantService {
@@ -91,10 +92,10 @@ export class RestaurantService {
     return restaurant;
   };
 
-  findAll = async () => {
-    const result = await findAllRestaurants();
-    return result;
-  };
+  findAll = async(params: PaginationParams, filters: FilterParams[]) => {
+      const result = await findAllRestaurants(params, filters);
+      return buildPaginationResult(result, params.limit, params.sortBy);
+    }
 
   findById = async (id: number) => {
     const result = await findRestaurantById(id);
