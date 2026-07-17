@@ -18,4 +18,7 @@ export const TOKENS = {
     CustomerAddressController: Symbol.for("CustomerAddressController"),
     // lib/infa/
     Logger: Symbol.for("Logger"),
+    CacheProvider: Symbol.for("CacheProvider"),
+    EmailProvider: Symbol.for("EmailProvider")
+    
 }

@@ -19,6 +19,8 @@ import { ProductService } from "../../app/product/service/product.service";
 import { PermissionCacheService } from "../../app/rbac/service/permission-cache.service";
 // infastructure
 import { Logger } from "../logger/logger";
+import { cacheProvider } from "../cache/init";
+import { emailProvider } from "../email/init";
 
 
 container.registerSingleton(TOKENS.Logger, Logger);
@@ -39,5 +41,9 @@ container.registerSingleton(TOKENS.BranchController, BranchController);
 container.registerSingleton(TOKENS.MemberController, MemberController);
 container.registerSingleton(TOKENS.ProductController, ProductController);
 container.registerSingleton(TOKENS.CustomerAddressController, CustomerAddressController);
+
+container.registerInstance(TOKENS.CacheProvider, cacheProvider);
+
+container.registerInstance(TOKENS.EmailProvider, emailProvider);
 
 export { container };
