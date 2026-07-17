@@ -18,7 +18,14 @@ const schema = z.object({
   REFRESH_SERCRET: z.string(),
   ACCESS_EXPIRES_IN: z.string(),
   REFRESH_EXPIRES_IN: z.string(),
-  CORS_ORIGINS: z.string().default("http://localhost:3000")
+  CORS_ORIGINS: z.string().default("http://localhost:3000"),
+  REDIS_HOST: z.string().default("localhost"),
+  REDIS_PORT: z.string().default("6379"),
+  REDIS_PASSWORD: z.string().optional(),
+  MAILJET_API_KEY: z.string(),
+  MAILJET_SECRET_KEY: z.string(),
+  MAILJET_FROM_EMAIL: z.string(),
+  MAILJET_FROM_NAME: z.string()
 });
 
 const parsed = schema.parse(process.env);
@@ -44,8 +51,18 @@ export const env = {
     isProduction: process.env.NODE_ENV === "production",
     cors: {
         origins: parsed.CORS_ORIGINS.split(','),
-    }
+    },
     // redis
-    // payment
+    redis: {
+        host: parsed.REDIS_HOST,
+        port: Number(parsed.REDIS_PORT),
+        password: parsed.REDIS_PASSWORD
+    },
+    mailjet: {
+        apiKey: parsed.MAILJET_API_KEY,
+        secretKey: parsed.MAILJET_SECRET_KEY,
+        fromEmail: parsed.MAILJET_FROM_EMAIL,
+        fromName: parsed.MAILJET_FROM_NAME
+    }
 };
 
