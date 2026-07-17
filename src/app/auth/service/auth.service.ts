@@ -13,6 +13,8 @@ import { CannotSignupAsSystemAdmin, IncorrectCredentials, InvalidOTPError, Resta
 import { createPasswordReset, findLatestPasswordResetByUserId, updatePasswordResetConsumedAt, } from "../repository/password-reset.repo";
 import { comparePassword, createAccessToken, createRefreshToken, generateOTP, hashOTP, hashPassword, verifyRefreshToken,} from "../utils";
 import { TOKENS } from "../../../lib/di/tokens";
+import { IEmailProvider } from "../../../pkg/email/email.interface";
+import { passwordResetEmail } from "../templates/password-reset";
 
 
 @injectable()
@@ -21,6 +23,7 @@ export class AuthService {
     @inject(TOKENS.UserService) private readonly userService: UserService,
     @inject(TOKENS.MemberService) private readonly memberService: MemberService,
     @inject(TOKENS.RestaurantService) private readonly restaurantService: RestaurantService,
+    @inject(TOKENS.EmailProvider) private readonly emailProvider: IEmailProvider
   ) {}
 
   register = async (data: RegisterDTO) => {
@@ -174,8 +177,8 @@ export class AuthService {
       createdAt: new Date(),
     });
 
-    // TODO: send email
-    console.log(`mocked email sent ${otp}`);
+    const email = passwordResetEmail(otp);
+    await this.emailProvider.send(data.email, email.subject, email.html);
   };
 
   resetPassword = async (data: ResetPasswordDTO) => {
