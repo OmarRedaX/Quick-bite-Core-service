@@ -4,12 +4,13 @@ import { rbac, requireBranchAccess, requireRestaurantMember, } from "../../lib/a
 import {container} from "../../lib/di/container"
 import { TOKENS } from "../../lib/di/tokens";
 import { BranchController } from "./controller/branch.controller";
+import { withCache } from "../../lib/cache/withCache";
 
 export const branchRouter = Router();
 
 const branchController = container.resolve<BranchController>(TOKENS.BranchController);
 
-branchRouter.get("/branches/nearby", branchController.findNearby);
+branchRouter.get("/branches/nearby", withCache(), branchController.findNearby);
 branchRouter.get(
   "/restaurants/:restaurantId/branches",
   branchController.findByRestaurant,
