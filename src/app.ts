@@ -11,6 +11,7 @@ export function createApp() {
   const app = express();
   app.use(helmet());
   app.use(cors({ origin: env.cors.origins, credentials: true }));
+  app.set('query parser', 'extended');
   app.use(express.json());
   app.use(cookieParser());
   app.use(correlationId);
