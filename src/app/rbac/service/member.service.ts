@@ -15,19 +15,14 @@ import { findRoleByName } from "../repo/role.repo";
 import { UserService } from "../../user/service/user.service";
 import { inject, injectable } from "tsyringe";
 import { TOKENS } from "../../../lib/di/tokens";
-
-async function validateBranchOwnership( branchIds: number[], restaurantId: number, ) {
-  if (branchIds.length === 0) return;
-  const count = await countBranchesByIdsAndRestaurant(branchIds, restaurantId);
-  if (count !== branchIds.length) {
-    throw InvalidBranchIdsError;
-  }
-}
+import { IEmailProvider } from "../../../pkg/email/email.interface";
+import { memberInvitationEmail } from "../templates/member-invitation";
 
 @injectable()
 export class MemberService {
   constructor(
     @inject(TOKENS.UserService) private readonly userService: UserService,
+    @inject(TOKENS.EmailProvider) private readonly emailProvider: IEmailProvider
   ) {}
 
   createOwnerMember = async ( restaurantId: number, userId: number, trx?: Knex.Transaction, ) => {
@@ -59,7 +54,7 @@ export class MemberService {
 
     // validate branchIds belong to this restaurant
     const branchIds = data.branchIds || [];
-    await validateBranchOwnership(branchIds, restaurantId);
+    await this.validateBranchOwnership(branchIds, restaurantId);
 
     const trx = await db.transaction();
 
@@ -118,8 +113,8 @@ export class MemberService {
         trx,
       );
 
-      // TODO: send email
-      console.log(`mocked email sent ${otp}`);
+      const email = memberInvitationEmail(otp, data.role);
+      await this.emailProvider.send(data.email, email.subject, email.html)
 
       await trx.commit();
 
@@ -195,7 +190,7 @@ export class MemberService {
     if (result.roleName === "owner") throw CannotUpdateOwnerBranchesError;
 
     // validate branchIds belong to this restaurant (single COUNT query)
-    await validateBranchOwnership(data.branchIds, restaurantId);
+    await this.validateBranchOwnership(data.branchIds, restaurantId);
 
     const now = new Date();
     const rows = data.branchIds.map(
@@ -221,4 +216,12 @@ export class MemberService {
       permissions,
     };
   };
+   
+  validateBranchOwnership = async( branchIds: number[], restaurantId: number, ) =>{
+    if (branchIds.length === 0) return;
+    const count = await countBranchesByIdsAndRestaurant(branchIds, restaurantId);
+    if (count !== branchIds.length) {
+      throw InvalidBranchIdsError;
+    }
+}
 }
