@@ -2,7 +2,7 @@ export class Product {
     id: number;
     name: string;
     description: string;
-    imageURL: string;
+    imageUrl: string;
     restaurantId: number;
     categoryId: number | null;
     createdAt: Date;
@@ -12,8 +12,8 @@ export class Product {
     constructor(data: Partial<Product>) {
         this.id = data.id!;
         this.name = data.name!;
-        this.description = data.description ?? '';
-        this.imageURL = data.imageURL ?? '';
+        this.description = data.description ?? "";
+        this.imageUrl = data.imageUrl ?? "";
         this.restaurantId = data.restaurantId!;
         this.categoryId = data.categoryId ?? null;
         this.createdAt = data.createdAt ?? new Date();
