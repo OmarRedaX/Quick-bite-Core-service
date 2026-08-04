@@ -1,20 +1,20 @@
-import { NextFunction, Request, Response } from "express";
-import { toMs } from "../../pkg/utils/time.utils";
-import { ICacheProvider } from "../../pkg/cache/cache.interface";
-import { container } from "../di/container";
-import { TOKENS } from "../di/tokens";
+import {Request, Response, NextFunction} from "express";
+import {ICacheProvider} from "../../pkg/cache/cache.interface";
+import {container} from "../di/container";
+import {TOKENS} from "../di/tokens";
+import {toSeconds} from "../../pkg/utils/time";
 
-const TTL = toMs(1, "d");
+const TTL = toSeconds(1, 'd');
 
 interface IdempotencyOptions {
     strict?: boolean;
 }
 
 export function idempotency(options: IdempotencyOptions = {}) {
-    const { strict = false } = options;
+    const {strict = false} = options;
 
     return async (req: Request, res: Response, next: NextFunction) => {
-        if(!["POST", "PATCH", "PUT"].includes(req.method)) {
+        if (!["POST", "PATCH", "PUT"].includes(req.method)) {
             return next();
         }
 
@@ -22,7 +22,9 @@ export function idempotency(options: IdempotencyOptions = {}) {
 
         if (!idempotencyKey) {
             if (strict) {
-                return res.status(400).json({ error: "Missing Idempotency-Key header" });
+                return res.status(400).json({
+                    error: "Missing Idempotency-Key header",
+                });
             }
             return next();
         }
@@ -44,7 +46,6 @@ export function idempotency(options: IdempotencyOptions = {}) {
             });
 
             next();
-
         } catch {
             if (strict) {
                 return res.status(503).json({
@@ -53,5 +54,5 @@ export function idempotency(options: IdempotencyOptions = {}) {
             }
             next();
         }
-    }
+    };
 }

@@ -1,5 +1,5 @@
 import Mailjet from "node-mailjet";
-import { IEmailProvider } from "./email.interface";
+import {IEmailProvider} from "./email.interface";
 
 interface MailjetConfig {
     apiKey: string;
@@ -16,7 +16,7 @@ export class MailjetEmailProvider implements IEmailProvider {
     constructor(config: MailjetConfig) {
         this.client = new Mailjet({
             apiKey: config.apiKey,
-            apiSecret: config.secretKey
+            apiSecret: config.secretKey,
         });
         this.fromEmail = config.fromEmail;
         this.fromName = config.fromName;
@@ -28,17 +28,17 @@ export class MailjetEmailProvider implements IEmailProvider {
                 {
                     From: {
                         Email: this.fromEmail,
-                        Name: this.fromName
+                        Name: this.fromName,
                     },
                     To: [
                         {
-                            Email: to
-                        }
+                            Email: to,
+                        },
                     ],
                     Subject: subject,
-                    HTMLPart: html
-                }
-            ]
+                    HTMLPart: html,
+                },
+            ],
         });
     }
 }

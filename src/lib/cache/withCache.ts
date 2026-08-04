@@ -1,11 +1,11 @@
-import { NextFunction, Request, Response } from "express";
-import { container } from "../di/container";
-import { TOKENS } from "../di/tokens";
-import { ICacheProvider } from "../../pkg/cache/cache.interface";
+import {Request, Response, NextFunction} from "express";
+import {ICacheProvider} from "../../pkg/cache/cache.interface";
+import {container} from "../di/container";
+import {TOKENS} from "../di/tokens";
 
 export function withCache(ttl = 3600, userScoped = false) {
     return async (req: Request, res: Response, next: NextFunction) => {
-         try {
+        try {
             const cacheProvider: ICacheProvider = container.resolve(TOKENS.CacheProvider);
 
             let key = `${req.method}:${req.originalUrl}`;

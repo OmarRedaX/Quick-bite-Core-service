@@ -9,7 +9,7 @@ export function parsePaginationQuery(query: Record<string, any>, allowedSortBy: 
 
     return {
         cursor: query.cursor as string,
-        limit: Math.min(1000, Math.max(1, parseInt(query.limit as string, 10) || 10)),
+        limit: Math.min(1000, Number(query.limit)),
         sortBy,
         sortOrder: query.sortOrder === 'desc' ? 'desc' : 'asc'
     }
