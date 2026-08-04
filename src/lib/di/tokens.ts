@@ -1,5 +1,5 @@
 export const TOKENS = {
-    // services
+    // Services
     AuthService: Symbol.for("AuthService"),
     UserService: Symbol.for("UserService"),
     RestaurantService: Symbol.for("RestaurantService"),
@@ -8,7 +8,7 @@ export const TOKENS = {
     ProductService: Symbol.for("ProductService"),
     CustomerAddressService: Symbol.for("CustomerAddressService"),
     PermissionCacheService: Symbol.for("PermissionCacheService"),
-    // controllers
+    // Controllers
     AuthController: Symbol.for("AuthController"),
     UserController: Symbol.for("UserController"),
     RestaurantController: Symbol.for("RestaurantController"),
@@ -16,9 +16,8 @@ export const TOKENS = {
     MemberController: Symbol.for("MemberController"),
     ProductController: Symbol.for("ProductController"),
     CustomerAddressController: Symbol.for("CustomerAddressController"),
-    // lib/infa/
+    // Lib/infra/
     Logger: Symbol.for("Logger"),
     CacheProvider: Symbol.for("CacheProvider"),
-    EmailProvider: Symbol.for("EmailProvider")
-    
+    EmailProvider: Symbol.for("EmailProvider"),
 }
