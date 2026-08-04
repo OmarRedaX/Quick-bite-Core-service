@@ -1,30 +1,20 @@
-import { Router } from "express";
-import { healthRouter } from "./app/health/health.routes";
-import { authRouter } from "./app/auth/routes";
-import { userRouter } from "./app/user/routes";
+import {Router} from "express";
+import {authRouter} from "./app/auth/routes";
+import {branchRouter} from "./app/branch/routes";
+import {healthRouter} from "./app/health/health.routes";
+import {rbacRouter} from "./app/rbac/routes";
+import {restaurantRouter} from "./app/restaurant/routes";
+import {userRouter} from "./app/user/routes";
 import {customerAddressRouter} from "./app/customer-address/routes";
-import { restaurantRouter } from "./app/restaurant/routes";
-import { branchRouter } from "./app/branch/routes";
-import { productRouter } from "./app/product/routes";
-import { memberRouter } from "./app/rbac/routes";
+import {productRouter} from "./app/product/routes";
 
 export const routes = Router();
 
 routes.use("/health", healthRouter);
-
-//user
-routes.use("/user", userRouter);
-//auth
-routes.use("/auth", authRouter);
-//customer
-routes.use("/customer/addresses", customerAddressRouter);
-//menu
-
-//restaurants
-routes.use("/restaurant", restaurantRouter);
-//branches
-routes.use("/", branchRouter);
-// products
+routes.use('/user', userRouter)
+routes.use('/auth', authRouter);
+routes.use('/customer/addresses', customerAddressRouter);
+routes.use('/restaurants', restaurantRouter)
+routes.use('/', branchRouter)
 routes.use('/', productRouter)
-// members
-routes.use("/", memberRouter);
+routes.use('/', rbacRouter)
