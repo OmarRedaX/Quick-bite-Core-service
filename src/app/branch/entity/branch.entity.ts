@@ -1,10 +1,10 @@
-import { Currency } from "../enums";
+import {Currency} from "../enums";
 
 export class Branch {
     id: number;
     restaurantId: number;
     countryCode: string;
-    addressText: string;
+    addressText:string;
     label: string;
     lat: number;
     lng: number;
@@ -12,12 +12,13 @@ export class Branch {
     opensAt: string;
     closesAt: string;
     acceptOrders: boolean;
-    deliveryRadius: number;  //KM
-    currency: Currency;
-    commission: number;
     createdAt: Date;
     updatedAt: Date;
-    location?: string;
+    deliveryRadius: number; // km
+    deliveryFee: number; // minor units of currency
+    currency: Currency
+    commission: number;
+    location?: String;
 
     constructor(data: Partial<Branch>) {
         this.id = data.id!;
@@ -31,10 +32,11 @@ export class Branch {
         this.opensAt = data.opensAt!;
         this.closesAt = data.closesAt!;
         this.acceptOrders = data.acceptOrders!;
-        this.deliveryRadius = data.deliveryRadius ?? 0;
-        this.currency = data.currency!;
-        this.commission = data.commission ?? 0;
         this.createdAt = data.createdAt ?? new Date();
         this.updatedAt = data.updatedAt ?? new Date();
+        this.deliveryRadius = data.deliveryRadius ?? 0;
+        this.deliveryFee = data.deliveryFee ?? 0;
+        this.currency = data.currency!;
+        this.commission = data.commission ?? 0;
     }
 }

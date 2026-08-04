@@ -1,6 +1,5 @@
-import {IsString, IsNotEmpty, IsNumber, IsInt, Min, IsEnum, IsBoolean, IsOptional, Max} from "class-validator";
-import { Currency } from "../enums";
-
+import {IsString, IsNotEmpty, IsNumber, IsInt, Min, IsEnum, IsOptional, IsBoolean, Max} from "class-validator";
+import {Currency} from "../enums";
 
 export class CreateBranchDTO {
     @IsString()
@@ -32,7 +31,7 @@ export class CreateBranchDTO {
     deliveryRadius!: number;
 
     @IsEnum(Currency)
-    currency!: Currency;
+    currency!: Currency
 }
 
 export class UpdateBranchDTO {
@@ -68,6 +67,11 @@ export class UpdateBranchDTO {
     deliveryRadius?: number;
 
     @IsOptional()
+    @IsInt()
+    @Min(0)
+    deliveryFee?: number;
+
+    @IsOptional()
     @IsEnum(Currency)
     currency?: Currency
 
@@ -77,13 +81,13 @@ export class UpdateBranchDTO {
 }
 
 export class UpdateBranchStatusDTO {
-    @IsBoolean()
     @IsOptional()
+    @IsBoolean()
     isActive?: boolean;
 
     @IsOptional()
     @IsNumber()
     @Min(0)
     @Max(100)
-    commission?: number
+    commission?: number;
 }
