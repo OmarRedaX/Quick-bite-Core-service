@@ -14,4 +14,5 @@ export class Role {
         this.createdAt = data.createdAt ?? new Date();
         this.updatedAt = data.updatedAt ?? new Date();
     }
+
 }

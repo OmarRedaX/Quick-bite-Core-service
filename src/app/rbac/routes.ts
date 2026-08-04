@@ -1,61 +1,57 @@
-import { Router } from "express";
-import { authenticate } from "../../lib/auth/guard";
-import { rbac, requireRestaurantMember } from "../../lib/auth/rbac";
-import { TOKENS } from "../../lib/di/tokens";
-import { MemberController } from "./controller/member.controller";
-import { container } from "../../lib/di/container";
+import {Router} from "express";
+import {authenticate} from "../../lib/auth/guard";
+import {requireRestaurantMember, rbac} from "../../lib/auth/rbac";
+import {requireInternalApiKey} from "../../lib/auth/api-key";
+import {TOKENS} from "../../lib/di/tokens";
+import {container} from "../../lib/di/container";
+import {MemberController} from "./controller/member.controller";
 
-export const memberRouter = Router();
+export const rbacRouter = Router();
 
 const memberController = container.resolve<MemberController>(TOKENS.MemberController);
 
 // GET /roles/:role/permissions — public
-memberRouter.get(
-  "/roles/:role/permissions",
-  memberController.getRolePermissions,
-);
+rbacRouter.get('/roles/:role/permissions', memberController.getRolePermissions);
+
+// Internal (service-to-service)
+rbacRouter.get('/internal/rbac/permissions', requireInternalApiKey, memberController.getPermissionsByRole);
 
 // POST /restaurants/:restaurantId/members — create/invite member
-memberRouter.post(
-  "/restaurants/:restaurantId/members",
-  authenticate,
-  requireRestaurantMember("restaurantId"),
-  rbac({ resource: "core:member", action: "create" }),
-  memberController.createMember,
+rbacRouter.post('/restaurants/:restaurantId/members',
+    authenticate,
+    requireRestaurantMember('restaurantId'),
+    rbac({resource:"core:member", action:'create'}),
+    memberController.createMember
 );
 
 // GET /restaurants/:restaurantId/members — list members
-memberRouter.get(
-  "/restaurants/:restaurantId/members",
-  authenticate,
-  requireRestaurantMember("restaurantId"),
-  rbac({ resource: "core:member", action: "read" }),
-  memberController.listMembers,
+rbacRouter.get('/restaurants/:restaurantId/members',
+    authenticate,
+    requireRestaurantMember('restaurantId'),
+    rbac({resource:"core:member", action:'read'}),
+    memberController.listMembers
 );
 
 // PATCH /restaurants/:restaurantId/members/:memberId — update member
-memberRouter.patch(
-  "/restaurants/:restaurantId/members/:memberId",
-  authenticate,
-  requireRestaurantMember("restaurantId"),
-  rbac({ resource: "core:member", action: "update" }),
-  memberController.updateMember,
+rbacRouter.patch('/restaurants/:restaurantId/members/:memberId',
+    authenticate,
+    requireRestaurantMember('restaurantId'),
+    rbac({resource:"core:member", action:'update'}),
+    memberController.updateMember
 );
 
 // DELETE /restaurants/:restaurantId/members/:memberId — delete member
-memberRouter.delete(
-  "/restaurants/:restaurantId/members/:memberId",
-  authenticate,
-  requireRestaurantMember("restaurantId"),
-  rbac({ resource: "core:member", action: "delete" }),
-  memberController.deleteMember,
+rbacRouter.delete('/restaurants/:restaurantId/members/:memberId',
+    authenticate,
+    requireRestaurantMember('restaurantId'),
+    rbac({resource:"core:member", action:'delete'}),
+    memberController.deleteMember
 );
 
 // PUT /restaurants/:restaurantId/members/:memberId/branches — update branch assignments
-memberRouter.put(
-  "/restaurants/:restaurantId/members/:memberId/branches",
-  authenticate,
-  requireRestaurantMember("restaurantId"),
-  rbac({ resource: "core:member", action: "update" }),
-  memberController.updateMemberBranches,
+rbacRouter.put('/restaurants/:restaurantId/members/:memberId/branches',
+    authenticate,
+    requireRestaurantMember('restaurantId'),
+    rbac({resource:"core:member", action:'update'}),
+    memberController.updateMemberBranches
 );

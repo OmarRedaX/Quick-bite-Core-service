@@ -1,5 +1,5 @@
 export class Permission {
-    id: string;
+    id: number;
     resource: string;
     action: string;
     createdAt: Date;

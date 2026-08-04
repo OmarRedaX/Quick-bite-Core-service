@@ -1,6 +1,6 @@
-import { MemberStatus } from "../enums";
+import {MemberStatus} from "../enums";
 
-export class RestaurantMember {
+export class RestaurantMember{
     id: number;
     restaurantId: number;
     userId: number;
@@ -19,3 +19,6 @@ export class RestaurantMember {
         this.updatedAt = data.updatedAt ?? new Date();
     }
 }
+// Admin will create a member with email and other data.
+// an email will be sent to the member with accept invite link and OTP
+// accept invite with otp, password
