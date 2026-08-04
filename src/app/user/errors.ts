@@ -1,3 +1,3 @@
-import { AppError } from "../../lib/error/AppError";
+import {AppError} from "../../lib/error/AppError";
 
-export const UserNotFoundError = new AppError("User not found", 404);
+export const UserNotFoundError = new AppError('User not found', 404);
