@@ -1,6 +1,6 @@
 export enum RestaurantStatus {
-    ACTIVE = "active",
-    SUSPENDED = "suspended",
-    DISABLED = "disabled",
-    PENDING = "pending"
+    ACTIVE = 'active',
+    SUSPENDED='suspended',
+    DISABLED='disabled',
+    PENDING='pending',
 }

@@ -1,17 +1,17 @@
-import { RestaurantStatus } from "../enums";
+import {RestaurantStatus} from "../enums";
 
-export class Restaurant {
+export class RestaurantEntity {
     id: number;
     ownerId: number;
     name: string;
     logoURL: string;
     status: RestaurantStatus;
-    primaryCountry: string;
-    createdAt: Date;
-    updatedAt: Date;
-    statusUpdatedAt: Date;
+    primaryCountry:string
+    createdAt: Date
+    updatedAt: Date
+    statusUpdatedAt: Date
 
-    constructor( data: Partial<Restaurant> ) {
+    constructor(data: Partial<RestaurantEntity>) {
         this.id = data.id!;
         this.ownerId = data.ownerId!;
         this.name = data.name!;

@@ -1,6 +1,6 @@
-import { Type } from "class-transformer";
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, IsStrongPassword, MaxLength, MinLength, ValidateNested } from "class-validator";
-import { RestaurantStatus } from "../enums";
+import {Type} from "class-transformer";
+import {IsString, IsNotEmpty, IsOptional, IsEnum, IsEmail, MinLength, MaxLength, IsStrongPassword, ValidateNested} from "class-validator";
+import {RestaurantStatus} from "../enums";
 
 export class CreateRestaurantOwnerDTO {
     @IsEmail()
@@ -24,10 +24,9 @@ export class CreateRestaurantOwnerDTO {
         message: 'Password is not strong enough. It must contain at least 8 characters, one uppercase letter, one lowercase letter, one number.',
     })
     password!: string;
-} 
+}
 
 export class CreateRestaurantDTO {
-
     @ValidateNested()
     @Type(() => CreateRestaurantOwnerDTO)
     owner!: CreateRestaurantOwnerDTO;
@@ -38,7 +37,7 @@ export class CreateRestaurantDTO {
 
     @IsOptional()
     @IsString()
-    logoURL?: string;
+    logoUrl?: string;
 
     @IsString()
     @IsNotEmpty()
@@ -46,7 +45,6 @@ export class CreateRestaurantDTO {
 }
 
 export class UpdateRestaurantDTO {
-
     @IsOptional()
     @IsString()
     @IsNotEmpty()
@@ -54,7 +52,7 @@ export class UpdateRestaurantDTO {
 
     @IsOptional()
     @IsString()
-    logoURL?: string;
+    logoUrl?: string;
 
     @IsOptional()
     @IsString()
