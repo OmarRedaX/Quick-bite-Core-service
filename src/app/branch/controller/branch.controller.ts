@@ -2,6 +2,7 @@ import {Request, Response, NextFunction} from "express";
 import {injectable, inject} from "tsyringe";
 import {TOKENS} from "../../../lib/di/tokens";
 import {sendSuccess} from "../../../lib/http/response";
+import {parseIdParam} from "../../../lib/http/params";
 import {validateBody} from "../../../lib/validation/validate";
 import {SystemRole} from "../../user/enums";
 import {CreateBranchDTO, UpdateBranchDTO, UpdateBranchStatusDTO} from "../dto/branch.dto";
@@ -16,7 +17,7 @@ export class BranchController {
     create = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const data = await validateBody(CreateBranchDTO, req.body);
-            const branch = await this.branchService.create(Number(req.params.restaurantId), req.user?.userId!, req.user?.role! as SystemRole, data);
+            const branch = await this.branchService.create(parseIdParam(req.params.restaurantId, "restaurantId"), req.user?.userId!, req.user?.role! as SystemRole, data);
             sendSuccess(res, {message: "Branch created", branch}, 201);
         } catch (err) {
             next(err);
@@ -34,7 +35,7 @@ export class BranchController {
 
     findByRestaurant = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const results = await this.branchService.findByRestaurant(Number(req.params.restaurantId));
+            const results = await this.branchService.findByRestaurant(parseIdParam(req.params.restaurantId, "restaurantId"));
             sendSuccess(res, results);
         } catch (err) {
             next(err);
@@ -54,7 +55,7 @@ export class BranchController {
     updateStatus = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const data = await validateBody(UpdateBranchStatusDTO, req.body);
-            const branch = await this.branchService.updateStatus(Number(req.params.id), req.user?.role! as SystemRole, data);
+            const branch = await this.branchService.updateStatus(parseIdParam(req.params.id), req.user?.role! as SystemRole, data);
             sendSuccess(res, {message: "Branch status updated", branch: {id: branch.id, isActive: branch.isActive, acceptOrders: branch.acceptOrders, commission: branch.commission}});
         } catch (err) {
             next(err);
@@ -63,7 +64,7 @@ export class BranchController {
 
     findByIdWithRestaurant = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const id = Number(req.params.id);
+            const id = parseIdParam(req.params.id);
             const result = await this.branchService.findByIdWithRestaurant(id);
             if (!result) throw BranchNotFoundError;
             sendSuccess(res, toInternalBranchDTO(result));

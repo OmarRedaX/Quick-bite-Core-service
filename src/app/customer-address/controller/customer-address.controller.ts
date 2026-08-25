@@ -2,6 +2,7 @@ import {NextFunction, Request, Response} from "express";
 import {injectable, inject} from "tsyringe";
 import {TOKENS} from "../../../lib/di/tokens";
 import {sendSuccess} from "../../../lib/http/response";
+import {parseIdParam} from "../../../lib/http/params";
 import {CustomerAddressService} from "../service/customer-address.service";
 import {validateBody} from "../../../lib/validation/validate";
 import {CreateAddressDTO, UpdateAddressDTO} from "../dto/customer-address.dto";
@@ -31,7 +32,7 @@ export class CustomerAddressController {
 
     update = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const addressId = Number(req.params.addressId);
+            const addressId = parseIdParam(req.params.addressId, "addressId");
             const data = await validateBody(UpdateAddressDTO, req.body);
             const address = await this.customerAddressService.update(req.user?.userId!, addressId, data);
             sendSuccess(res, {message: "Address updated", address});
@@ -42,7 +43,7 @@ export class CustomerAddressController {
 
     remove = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const addressId = Number(req.params.addressId);
+            const addressId = parseIdParam(req.params.addressId, "addressId");
             await this.customerAddressService.remove(req.user?.userId!, addressId);
             sendSuccess(res, {message: "Address deleted"});
         } catch (err) {
@@ -52,7 +53,7 @@ export class CustomerAddressController {
 
     getById = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const address = await this.customerAddressService.getById(Number(req.params.id));
+            const address = await this.customerAddressService.getById(parseIdParam(req.params.id));
             sendSuccess(res, address);
         } catch (err) {
             next(err);

@@ -2,6 +2,7 @@ import {NextFunction, Request, Response} from "express";
 import {injectable, inject} from "tsyringe";
 import {TOKENS} from "../../../lib/di/tokens";
 import {sendSuccess} from "../../../lib/http/response";
+import {parseIdParam} from "../../../lib/http/params";
 import {UserService} from "../service/user.service";
 import {validateBody} from "../../../lib/validation/validate";
 import {UpdateUserDTO} from "../dto/user.dto";
@@ -31,7 +32,7 @@ export class UserController {
 
     getAgentById = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const agent = await this.userService.getAgentById(Number(req.params.id));
+            const agent = await this.userService.getAgentById(parseIdParam(req.params.id));
             sendSuccess(res, agent);
         } catch (err) {
             next(err);

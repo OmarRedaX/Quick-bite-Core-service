@@ -2,6 +2,7 @@ import {Request, Response, NextFunction} from "express";
 import {injectable, inject} from "tsyringe";
 import {TOKENS} from "../../../lib/di/tokens";
 import {sendSuccess} from "../../../lib/http/response";
+import {parseIdParam} from "../../../lib/http/params";
 import {validateBody} from "../../../lib/validation/validate";
 import {SystemRole} from "../../user/enums";
 import {CreateProductDTO, UpdateProductDTO} from "../dto/product.dto";
@@ -42,7 +43,7 @@ export class ProductController {
 
     findCategories = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const results = await this.productService.findCategories(Number(req.params.restaurantId));
+            const results = await this.productService.findCategories(parseIdParam(req.params.restaurantId, "restaurantId"));
             sendSuccess(res, results);
         } catch (err) {
             next(err);
@@ -51,7 +52,7 @@ export class ProductController {
 
     findByBranch = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const results = await this.productService.findByBranch(Number(req.params.branchId));
+            const results = await this.productService.findByBranch(parseIdParam(req.params.branchId, "branchId"));
             sendSuccess(res, results);
         } catch (err) {
             next(err);
@@ -60,7 +61,7 @@ export class ProductController {
 
     findById = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const product = await this.productService.findById(Number(req.params.id));
+            const product = await this.productService.findById(parseIdParam(req.params.id));
             sendSuccess(res, product);
         } catch (err) {
             next(err);
@@ -70,7 +71,7 @@ export class ProductController {
     update = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const data = await validateBody(UpdateProductDTO, req.body);
-            const branchId = req.query.branchId ? Number(req.query.branchId) : undefined;
+            const branchId = req.query.branchId ? parseIdParam(req.query.branchId, "branchId") : undefined;
             const result = await this.productService.update(
                 Number(req.params.id),
                 req.user?.userId!,
@@ -86,7 +87,7 @@ export class ProductController {
 
     findByBranchAndIds = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const branchId = Number(req.params.id);
+            const branchId = parseIdParam(req.params.id, "branchId");
             const raw = typeof req.query.ids === "string" ? req.query.ids : "";
             const ids = raw.split(",").map((s) => Number(s.trim())).filter((n) => Number.isInteger(n) && n > 0);
             if (ids.length === 0) throw MissingProductIdsQueryError;
@@ -99,7 +100,7 @@ export class ProductController {
 
     reserveStock = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const branchId = Number(req.params.id);
+            const branchId = parseIdParam(req.params.id, "branchId");
             const items = req.body?.items;
             if (!Array.isArray(items) || items.length === 0) {
                 throw InvalidReserveItemsError;
@@ -113,7 +114,7 @@ export class ProductController {
 
     releaseStock = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const branchId = Number(req.params.id);
+            const branchId = parseIdParam(req.params.id, "branchId");
             const items = req.body?.items;
             if (!Array.isArray(items) || items.length === 0) {
                 throw InvalidReserveItemsError;
