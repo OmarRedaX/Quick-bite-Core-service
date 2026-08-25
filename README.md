@@ -43,15 +43,4 @@ Services only add a check where the middleware can't fully express the scoping (
 
 ## Testing
 
-No automated test framework (Jest/Vitest/etc.) is wired up yet. `play/api-test*.mjs` are standalone, DB-backed API test scripts written to verify the backend end-to-end against a running dev server:
-
-```bash
-npm run dev   # in one terminal
-node play/api-test.mjs               # auth, user, customer-address
-node play/api-test-2.mjs             # restaurant, branch, product CRUD
-node play/api-test-3.mjs             # RBAC member invite/accept-invite flow
-node play/api-test-4.mjs             # error handling, caching, idempotency, injection resistance
-node play/api-test-rbac-scoping.mjs  # branch/product authorization matrix (owner/branch_manager/staff, cross-restaurant isolation)
-```
-
-Each script registers its own test users/restaurants against whatever database `.env` points at and prints a `PASS`/`FAIL` line per check.
+No automated test framework (Jest/Vitest/etc.) is wired up yet. `play/` (gitignored, local-only) is where ad-hoc DB-backed API test scripts live during development to verify the backend end-to-end against a running dev server — not part of the repo.
