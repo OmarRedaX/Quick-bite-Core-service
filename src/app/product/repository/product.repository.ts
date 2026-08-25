@@ -24,6 +24,8 @@ export async function createProduct(data: Partial<Product>): Promise<Product> {
         image_url: data.imageUrl,
         restaurant_id: data.restaurantId,
         category_id: data.categoryId,
+        created_at: new Date(),
+        updated_at: new Date(),
     }).returning(PRODUCT_COLUMNS);
     return toEntity(row);
 }

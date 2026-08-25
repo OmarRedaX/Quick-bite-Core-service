@@ -34,6 +34,8 @@ export async function createCategory(restaurantId: number, name: string, conn: K
     const [row] = await conn("product_categories").insert({
         restaurant_id: restaurantId,
         name,
+        created_at: new Date(),
+        updated_at: new Date(),
     }).returning(CATEGORY_COLUMNS);
     return toEntity(row);
 }
