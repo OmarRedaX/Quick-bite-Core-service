@@ -1,5 +1,6 @@
 import {injectable, inject} from "tsyringe";
 import {TOKENS} from "../../../lib/di/tokens";
+import {logger} from "../../../lib/logger/logger";
 import {IEmailProvider} from "../../../pkg/email/email.interface";
 import {db} from "../../../lib/knex/knex";
 import {findBranchIdsByMemberId} from "../../rbac/repository/member-branch.repo";
@@ -155,7 +156,15 @@ export class AuthService {
             }
         )
         const email = passwordResetEmail(otp);
-        await this.emailProvider.send(data.email, email.subject, email.html);
+        try {
+            await this.emailProvider.send(data.email, email.subject, email.html);
+        } catch (err) {
+            // Swallow provider failures: the reset code was already persisted, and
+            // surfacing this to the caller would both 500 a well-formed request and
+            // leak account existence (the "user not found" branch above returns
+            // silently, so a provider error must not distinguish itself from it).
+            logger.warn("forgetPassword: email provider failed", {error: (err as Error).message});
+        }
     }
 
     resetPassword =  async(data: ResetPasswordDTO ) => {

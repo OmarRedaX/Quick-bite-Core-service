@@ -3,6 +3,7 @@ import {injectable, inject} from "tsyringe";
 import {TOKENS} from "../../../lib/di/tokens";
 import {IEmailProvider} from "../../../pkg/email/email.interface";
 import {db} from "../../../lib/knex/knex";
+import {logger} from "../../../lib/logger/logger";
 import {toMs} from "../../../pkg/utils/time";
 import {createPasswordReset} from "../../auth/repository/password-reset.repo";
 import {generateOTP, hashOTP} from "../../auth/utils";
@@ -105,10 +106,18 @@ export class MemberService{
                     createdAt: new Date(),
                 }, trx
             )
-            const email = memberInvitationEmail(otp, data.role);
-            await this.emailProvider.send(data.email, email.subject, email.html);
-
             await trx.commit()
+
+            // Best-effort: the member/user/OTP are already committed, so an email
+            // provider failure here must not roll back a real invite or 500 the
+            // request — it would otherwise abort a fully valid member creation
+            // over a transient (or, as observed, account-level) provider error.
+            const email = memberInvitationEmail(otp, data.role);
+            try {
+                await this.emailProvider.send(data.email, email.subject, email.html);
+            } catch (err) {
+                logger.warn("createMember: email provider failed", {error: (err as Error).message});
+            }
 
             return {
                 message: "Member invited successfully",
