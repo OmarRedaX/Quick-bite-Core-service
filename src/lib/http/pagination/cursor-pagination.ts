@@ -61,7 +61,13 @@ export function buildPaginationResult<T>(rows: T[], limit: number, sortBy: strin
 
     if(data.length > 0) {
           const lastItem = data[data.length - 1] as any;
-          nextCursor = hasMore && lastItem ? String(lastItem[sortBy]): null;
+          const cursorValue = lastItem[sortBy];
+          // Date must be serialized as ISO (not the default `String(Date)` locale
+          // format, e.g. "Wed Aug 25 2026 ... GMT+0300 (...)") — Postgres can't
+          // parse that back as a timestamp on the next page's WHERE clause.
+          nextCursor = hasMore && lastItem
+              ? (cursorValue instanceof Date ? cursorValue.toISOString() : String(cursorValue))
+              : null;
     }
     return {
         data,
