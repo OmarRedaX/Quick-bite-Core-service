@@ -23,10 +23,16 @@ import {updateBranchDetails} from "../repository/product-branch-details.reposito
 @injectable()
 export class ProductService {
 
-    create = async (restaurantId: number, userId: number, userRole: SystemRole, data: CreateProductDTO) => {
+    create = async (restaurantId: number, userId: number, userRole: SystemRole, callerRestaurantId: number | undefined, data: CreateProductDTO) => {
         const restaurant = await findRestaurantById(restaurantId);
         if (!restaurant) throw RestaurantNotFoundError;
-        if (userRole !== SystemRole.SYSTEM_ADMIN && Number(restaurant.ownerId) !== Number(userId)) {
+        // requireRestaurantMember already confirms callerRestaurantId === restaurantId
+        // for every role (no owner-only bypass there), so this is redundant in the
+        // common case — kept as defense-in-depth against this method ever being
+        // called from a path that skips that middleware. Must stay a restaurant
+        // -membership check (not literal-owner), since branch_manager also holds
+        // core:product:create per the RBAC seed data.
+        if (userRole !== SystemRole.SYSTEM_ADMIN && Number(callerRestaurantId) !== Number(restaurantId)) {
             throw UnAuthorisedError;
         }
 
@@ -48,10 +54,13 @@ export class ProductService {
         });
     }
 
-    findByRestaurant = async (restaurantId: number, userId: number, userRole: SystemRole) => {
+    findByRestaurant = async (restaurantId: number, userId: number, userRole: SystemRole, callerRestaurantId: number | undefined) => {
         const restaurant = await findRestaurantById(restaurantId);
         if (!restaurant) throw RestaurantNotFoundError;
-        if (userRole !== SystemRole.SYSTEM_ADMIN && Number(restaurant.ownerId) !== Number(userId)) {
+        // Same restaurant-membership check as create() — core:product:read is
+        // granted to owner, branch_manager, AND staff per seed data, so this
+        // must not be an owner-only check.
+        if (userRole !== SystemRole.SYSTEM_ADMIN && Number(callerRestaurantId) !== Number(restaurantId)) {
             throw UnAuthorisedError;
         }
         return await findProductsByRestaurant(restaurantId);
@@ -73,7 +82,7 @@ export class ProductService {
         return product;
     }
 
-    update = async (productId: number, userId: number, userRole: SystemRole, data: UpdateProductDTO, branchId?: number) => {
+    update = async (productId: number, userId: number, userRole: SystemRole, callerRestaurantId: number | undefined, data: UpdateProductDTO, branchId?: number) => {
         const product = await findProductById(productId);
         if (!product) {
             throw ProductNotFoundError;
@@ -81,7 +90,14 @@ export class ProductService {
 
         const restaurant = await findRestaurantById(product.restaurantId);
         if (!restaurant) throw RestaurantNotFoundError;
-        if (userRole !== SystemRole.SYSTEM_ADMIN && Number(restaurant.ownerId) !== Number(userId)) {
+        // The route (`/products/:id`) carries no restaurantId, and
+        // requireBranchAccess only scopes by branch when a branchId query param
+        // is present — a name/description-only update (no branchId) reaches here
+        // with zero restaurant scoping from middleware. This check is the sole
+        // cross-restaurant guard for that path, so it must stay a
+        // restaurant-membership check (not literal-owner) — branch_manager also
+        // holds core:product:update per seed data.
+        if (userRole !== SystemRole.SYSTEM_ADMIN && Number(callerRestaurantId) !== Number(restaurant.id)) {
             throw UnAuthorisedError;
         }
 

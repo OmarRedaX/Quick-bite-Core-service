@@ -28,7 +28,11 @@ export async function setMemberBranches(memberId: number, rows: MemberBranch[], 
 
 export async function findBranchIdsByMemberId(memberId: number): Promise<number[]> {
     const rows = await db("member_branches").select("branch_id").where("member_id", memberId);
-    return rows?.map(row => row.branch_id); // [{branch_id:2}, {branch_id:3}] -> [2,3]
+    // branch_id is bigint -> pg returns it as a string; coerce so JWT branchIds
+    // claims are real numbers (requireBranchAccess compares them with strict
+    // Array.includes against a parseInt'd route param, so "11" !== 11 silently
+    // fails the branch-membership check otherwise).
+    return rows?.map(row => Number(row.branch_id)); // [{branch_id:'2'}, {branch_id:'3'}] -> [2,3]
 }
 
 export async function countBranchesByIdsAndRestaurant(branchIds: number[], restaurantId: number): Promise<number> {

@@ -17,9 +17,10 @@ export class ProductController {
         try {
             const data = await validateBody(CreateProductDTO, req.body);
             const product = await this.productService.create(
-                Number(req.params.restaurantId),
+                parseIdParam(req.params.restaurantId, "restaurantId"),
                 req.user?.userId!,
                 req.user?.role! as SystemRole,
+                req.user?.restaurantId,
                 data,
             );
             sendSuccess(res, {message: "Product created", product}, 201);
@@ -31,9 +32,10 @@ export class ProductController {
     findByRestaurant = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const results = await this.productService.findByRestaurant(
-                Number(req.params.restaurantId),
+                parseIdParam(req.params.restaurantId, "restaurantId"),
                 req.user?.userId!,
                 req.user?.role! as SystemRole,
+                req.user?.restaurantId,
             );
             sendSuccess(res, results);
         } catch (err) {
@@ -73,9 +75,10 @@ export class ProductController {
             const data = await validateBody(UpdateProductDTO, req.body);
             const branchId = req.query.branchId ? parseIdParam(req.query.branchId, "branchId") : undefined;
             const result = await this.productService.update(
-                Number(req.params.id),
+                parseIdParam(req.params.id),
                 req.user?.userId!,
                 req.user?.role! as SystemRole,
+                req.user?.restaurantId,
                 data,
                 branchId,
             );

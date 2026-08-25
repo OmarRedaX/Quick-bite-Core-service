@@ -45,7 +45,7 @@ export class BranchController {
     update = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const data = await validateBody(UpdateBranchDTO, req.body);
-            const branch = await this.branchService.update(Number(req.params.id), req.user?.userId!, req.user?.role! as SystemRole, data);
+            const branch = await this.branchService.update(parseIdParam(req.params.id), req.user?.userId!, req.user?.role! as SystemRole, req.user?.restaurantId, data);
             sendSuccess(res, {message: "Branch updated", branch});
         } catch (err) {
             next(err);

@@ -92,7 +92,7 @@ export class BranchService {
         return branch;
     }
 
-    update = async (branchId: number, userId: number, userRole: SystemRole, data: UpdateBranchDTO) => {
+    update = async (branchId: number, userId: number, userRole: SystemRole, callerRestaurantId: number | undefined, data: UpdateBranchDTO) => {
         const branch = await findBranchById(branchId);
         if (!branch) {
             throw BranchNotFoundError;
@@ -100,7 +100,13 @@ export class BranchService {
 
         const restaurant = await findRestaurantById(branch.restaurantId);
         if (!restaurant) throw RestaurantNotFoundError;
-        if (userRole !== SystemRole.SYSTEM_ADMIN && Number(restaurant.ownerId) !== Number(userId)) {
+        // Route authorization (requireBranchAccess + rbac) already confirms the
+        // caller has core:branch:update and, for non-owners, is assigned to this
+        // branch — but requireBranchAccess bypasses that branch check for ANY
+        // 'owner' role regardless of which restaurant they own. This is the one
+        // remaining cross-restaurant guard: it must stay a restaurant-membership
+        // check (not a literal-owner check), so branch_manager can still pass.
+        if (userRole !== SystemRole.SYSTEM_ADMIN && Number(callerRestaurantId) !== Number(restaurant.id)) {
             throw UnAuthorisedError;
         }
 
