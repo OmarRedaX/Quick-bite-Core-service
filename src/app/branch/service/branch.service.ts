@@ -1,15 +1,16 @@
 import {injectable} from "tsyringe";
 import {UnAuthorisedError} from "../../../lib/auth/errors";
 import {RestaurantNotFoundError} from "../../restaurant/errors";
-import {findRestaurantById} from "../../restaurant/repository/restaurant.repo";
+import {findRestaurantById, findRestaurantsByIds} from "../../restaurant/repository/restaurant.repo";
 import {BranchNotFoundError} from "../errors";
 import {SystemRole} from "../../user/enums";
 import {db} from "../../../lib/knex/knex";
 import {insertOutboxEvent} from "../../../lib/events/outbox.repo";
 import {EVENT_TYPES} from "../../../lib/events/event-types";
+import {cacheProvider} from "../../../lib/cache/init";
 import {CreateBranchDTO, UpdateBranchDTO, UpdateBranchStatusDTO} from "../dto/branch.dto";
 import {BranchWithRestaurant} from "../types";
-import {findNearbyBranches, createBranch, findBranchesByRestaurant, findBranchById, updateBranch, updateBranchStatus} from "../repository/branch.repository";
+import {findNearbyBranches, createBranch, findBranchesByRestaurant, findBranchById, findBranchesByIds, updateBranch, updateBranchStatus} from "../repository/branch.repository";
 
 @injectable()
 export class BranchService {
@@ -27,7 +28,38 @@ export class BranchService {
         const branch = await findBranchById(branchId);
         if (!branch) return null;
         const restaurant = await findRestaurantById(branch.restaurantId);
-        return {branch, restaurantStatus: restaurant?.status ?? "unknown"};
+        if (!restaurant) return null;
+        return {
+            branch,
+            restaurantStatus: restaurant.status,
+            restaurantOwnerId: Number(restaurant.ownerId),
+        };
+    }
+
+    /**
+     * Batch variant of findByIdWithRestaurant. Two queries total — one
+     * `WHERE branch.id IN (...)`, one `WHERE restaurant.id IN (...)` — then
+     * joined in-memory. Keeps the order-service's `getBranchesByIds` cheap.
+     * Branches whose restaurant is missing are dropped (same null behaviour
+     * as the single variant).
+     */
+    findByIdsWithRestaurant = async (branchIds: number[]): Promise<BranchWithRestaurant[]> => {
+        if (branchIds.length === 0) return [];
+        const branches = await findBranchesByIds(branchIds);
+        if (branches.length === 0) return [];
+        const restaurants = await findRestaurantsByIds(Array.from(new Set(branches.map((b) => b.restaurantId))));
+        const byId = new Map(restaurants.map((r) => [Number(r.id), r]));
+        const out: BranchWithRestaurant[] = [];
+        for (const branch of branches) {
+            const restaurant = byId.get(Number(branch.restaurantId));
+            if (!restaurant) continue;
+            out.push({
+                branch,
+                restaurantStatus: restaurant.status,
+                restaurantOwnerId: Number(restaurant.ownerId),
+            });
+        }
+        return out;
     }
 
     create = async (restaurantId: number, userId: number, userRole: SystemRole, data: CreateBranchDTO) => {
@@ -82,6 +114,7 @@ export class BranchService {
                 payload: {branchId},
             });
             await trx.commit();
+            await cacheProvider.del(`GET:/api/internal/branches/${branchId}`);
             return updated;
         } catch (err) {
             await trx.rollback();
@@ -112,6 +145,7 @@ export class BranchService {
                 payload: {branchId},
             });
             await trx.commit();
+            await cacheProvider.del(`GET:/api/internal/branches/${branchId}`);
             return updated;
         } catch (err) {
             await trx.rollback();

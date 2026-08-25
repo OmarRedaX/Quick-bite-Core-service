@@ -28,4 +28,9 @@ branchRouter.patch('/branches/:id',
 branchRouter.patch('/branches/:id/status', authenticate, branchController.updateStatus); // system_admin only, checked in service
 
 // Internal (service-to-service)
-branchRouter.get('/internal/branches/:id', requireInternalApiKey, branchController.findByIdWithRestaurant);
+// Hot path: hit on every order placement. 60s TTL is short enough that
+// branch toggles propagate quickly via the branch.* event pipeline.
+// The batch endpoint mounts BEFORE the :id one so Express doesn't treat
+// the literal "ids" query against a path param.
+branchRouter.get('/internal/branches', requireInternalApiKey, withCache(60), branchController.findByIdsWithRestaurant);
+branchRouter.get('/internal/branches/:id', requireInternalApiKey, withCache(60), branchController.findByIdWithRestaurant);

@@ -66,24 +66,52 @@ export class BranchController {
             const id = Number(req.params.id);
             const result = await this.branchService.findByIdWithRestaurant(id);
             if (!result) throw BranchNotFoundError;
-            const {branch, restaurantStatus} = result;
-            sendSuccess(res, {
-                id: branch.id,
-                restaurantId: branch.restaurantId,
-                restaurantStatus,
-                region: branch.countryCode,
-                isActive: branch.isActive,
-                acceptOrders: branch.acceptOrders,
-                deliveryFee: branch.deliveryFee,
-                commissionBps: branch.commission,
-                currency: branch.currency,
-                lat: Number(branch.lat),
-                lng: Number(branch.lng),
-                name: branch.label,
-                addressText: branch.addressText,
-            });
+            sendSuccess(res, toInternalBranchDTO(result));
         } catch (err) {
             next(err);
         }
     }
+
+    /**
+     * Batch lookup for the order-service's `getBranchesByIds`. Caller passes
+     * `?ids=1,2,3` (max 100 per call to keep the URL bounded). Missing ids
+     * are silently dropped from the response — clients should not assume
+     * `response.length === input.length`.
+     */
+    findByIdsWithRestaurant = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const raw = String(req.query.ids ?? "").trim();
+            if (!raw) return sendSuccess(res, []);
+            const ids = raw.split(",").map((s) => Number(s.trim())).filter((n) => Number.isFinite(n) && n > 0);
+            if (ids.length === 0) return sendSuccess(res, []);
+            if (ids.length > 100) return res.status(400).json({error: "ids: max 100 per call"});
+            const results = await this.branchService.findByIdsWithRestaurant(ids);
+            sendSuccess(res, results.map(toInternalBranchDTO));
+        } catch (err) {
+            next(err);
+        }
+    }
+}
+
+function toInternalBranchDTO(r: {branch: any; restaurantStatus: string; restaurantOwnerId: number}) {
+    const {branch, restaurantStatus, restaurantOwnerId} = r;
+    return {
+        id: branch.id,
+        restaurantId: branch.restaurantId,
+        restaurantOwnerId,
+        restaurantStatus,
+        region: branch.countryCode,
+        isActive: branch.isActive,
+        acceptOrders: branch.acceptOrders,
+        deliveryFee: branch.deliveryFee,
+        // restaurant_branches.commission is stored as a 0-100 percent (the
+        // UpdateBranchStatusDTO caps it at 100). Convert to basis points here
+        // so consumers can use the standard bps math (× / 10000).
+        commissionBps: branch.commission * 100,
+        currency: branch.currency,
+        lat: Number(branch.lat),
+        lng: Number(branch.lng),
+        name: branch.label,
+        addressText: branch.addressText,
+    };
 }
