@@ -2,6 +2,7 @@ import {Router} from "express";
 import {authenticate} from "../../lib/auth/guard";
 import {requireRestaurantMember, rbac} from "../../lib/auth/rbac";
 import {requireInternalApiKey} from "../../lib/auth/api-key";
+import {withCache} from "../../lib/cache/withCache";
 import {TOKENS} from "../../lib/di/tokens";
 import {container} from "../../lib/di/container";
 import {MemberController} from "./controller/member.controller";
@@ -14,7 +15,9 @@ const memberController = container.resolve<MemberController>(TOKENS.MemberContro
 rbacRouter.get('/roles/:role/permissions', memberController.getRolePermissions);
 
 // Internal (service-to-service)
-rbacRouter.get('/internal/rbac/permissions', requireInternalApiKey, memberController.getPermissionsByRole);
+// Read very often by every consumer; permissions only change on rbac.permissions_changed.
+// 5min TTL is fine — staleness window is bounded by event propagation, plus this is a soft cache.
+rbacRouter.get('/internal/rbac/permissions', requireInternalApiKey, withCache(300), memberController.getPermissionsByRole);
 
 // POST /restaurants/:restaurantId/members — create/invite member
 rbacRouter.post('/restaurants/:restaurantId/members',
