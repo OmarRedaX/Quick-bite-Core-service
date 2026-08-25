@@ -192,7 +192,14 @@ export class AuthService {
         if (!refreshToken) {
             throw IncorrectCredentials;
         }
-        const payload = verifyRefreshToken(refreshToken);
+        let payload;
+        try {
+            payload = verifyRefreshToken(refreshToken);
+        } catch {
+            // malformed/tampered/expired refresh token throws jsonwebtoken's own
+            // error type, not an AppError -- would otherwise 500 via errorHandler.
+            throw IncorrectCredentials;
+        }
         const accessToken = createAccessToken({
             userId: payload.userId,
             role: payload.role,

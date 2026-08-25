@@ -8,6 +8,13 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
         throw NotAuthenticated
     }
 
-    req.user = verifyAccessToken(token);
+    try {
+        req.user = verifyAccessToken(token);
+    } catch {
+        // jsonwebtoken throws its own JsonWebTokenError/TokenExpiredError for a
+        // malformed, tampered, or expired token — not an AppError, so it would
+        // otherwise fall through errorHandler's non-operational branch as a 500.
+        throw NotAuthenticated;
+    }
     next();
 }
