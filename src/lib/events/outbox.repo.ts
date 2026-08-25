@@ -19,6 +19,22 @@ export async function insertOutboxEvent(conn: Knex, input: InsertOutboxInput): P
 }
 
 /**
+ * Bulk variant — single INSERT with N rows. Use whenever a service mutates
+ * multiple aggregates in one trx (e.g. reserveStock over N items) so we
+ * don't pay N round-trips to Postgres.
+ */
+export async function insertOutboxEvents(conn: Knex, inputs: InsertOutboxInput[]): Promise<void> {
+    if (inputs.length === 0) return;
+    await conn("events_outbox").insert(inputs.map((i) => ({
+        aggregate_type: i.aggregateType,
+        aggregate_id: String(i.aggregateId),
+        event_type: i.eventType,
+        event_id: randomUUID(),
+        payload: JSON.stringify(i.payload),
+    })));
+}
+
+/**
  * Dispatcher claim — selects a batch of undispatched rows and locks them so
  * another dispatcher process won't pick up the same rows. Caller is
  * responsible for committing/rolling back the trx.

@@ -36,3 +36,4 @@ productRouter.patch('/products/:id',
 // Internal (service-to-service)
 productRouter.get('/internal/branches/:id/products', requireInternalApiKey, productController.findByBranchAndIds);
 productRouter.post('/internal/branches/:id/reserve-stock', requireInternalApiKey, productController.reserveStock);
+productRouter.post('/internal/branches/:id/release-stock', requireInternalApiKey, productController.releaseStock);
