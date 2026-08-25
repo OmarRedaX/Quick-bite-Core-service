@@ -34,7 +34,7 @@ export async function findLatestPasswordResetByUserId(userId: number): Promise<P
         orderBy('id','desc').
         first()
     ;
-    return toEntity(row);
+    return row ? toEntity(row) : undefined;
 }
 
 export async function updatePasswordResetConsumedAt(id: number) {
