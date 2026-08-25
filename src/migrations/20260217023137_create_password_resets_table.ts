@@ -8,9 +8,9 @@ export async function up(knex: Knex): Promise<void> {
             user_id BIGINT NOT NULL,
             otp_hash TEXT NOT NULL,
             expires_at TIMESTAMP NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-            consumed_at TIMESTAMP,
-
+            consumed_at TIMESTAMP NOT NULL,
+            created_at TIMESTAMP NOT NULL,
+            
             CONSTRAINT fk_password_resets_user_id FOREIGN KEY (user_id) REFERENCES users(id)
         );
 
@@ -20,8 +20,6 @@ export async function up(knex: Knex): Promise<void> {
 
 
 export async function down(knex: Knex): Promise<void> {
-    await knex.raw(`
-        DROP TABLE password_resets;
-    `)
+    await knex.raw(`DROP TABLE password_resets;`);
 }
 

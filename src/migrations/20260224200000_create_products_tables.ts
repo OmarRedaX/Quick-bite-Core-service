@@ -1,6 +1,5 @@
 import type { Knex } from "knex";
 
-
 export async function up(knex: Knex): Promise<void> {
     await knex.raw(`
         CREATE TABLE product_categories (
@@ -9,7 +8,6 @@ export async function up(knex: Knex): Promise<void> {
             name TEXT NOT NULL,
             created_at TIMESTAMP NOT NULL,
             updated_at TIMESTAMP NOT NULL,
-
             CONSTRAINT fk_product_categories_restaurant_id FOREIGN KEY (restaurant_id) REFERENCES restaurants(id),
             CONSTRAINT uq_product_categories_restaurant_name UNIQUE (restaurant_id, name)
         );
@@ -24,7 +22,6 @@ export async function up(knex: Knex): Promise<void> {
             created_at TIMESTAMP NOT NULL,
             updated_at TIMESTAMP NOT NULL,
             deleted_at TIMESTAMP,
-
             CONSTRAINT fk_products_restaurant_id FOREIGN KEY (restaurant_id) REFERENCES restaurants(id),
             CONSTRAINT fk_products_category_id FOREIGN KEY (category_id) REFERENCES product_categories(id)
         );
@@ -36,7 +33,6 @@ export async function up(knex: Knex): Promise<void> {
             price INT NOT NULL,
             stock INT NOT NULL,
             is_available BOOLEAN NOT NULL,
-
             CONSTRAINT fk_pbd_branch_id FOREIGN KEY (branch_id) REFERENCES restaurant_branches(id),
             CONSTRAINT fk_pbd_product_id FOREIGN KEY (product_id) REFERENCES products(id),
             CONSTRAINT uq_pbd_branch_product UNIQUE (branch_id, product_id)
@@ -65,10 +61,8 @@ export async function up(knex: Knex): Promise<void> {
         AFTER INSERT ON products
         FOR EACH ROW
         EXECUTE FUNCTION fn_insert_product_branch_details();
-
-        `);
+    `);
 }
-
 
 export async function down(knex: Knex): Promise<void> {
     await knex.raw(`
@@ -79,4 +73,3 @@ export async function down(knex: Knex): Promise<void> {
         DROP TABLE IF EXISTS product_categories;
     `);
 }
-
