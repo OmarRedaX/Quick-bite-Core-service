@@ -14,7 +14,7 @@ Detected from `package.json` and the `src/lib`/`src/pkg` infrastructure code:
 | Query builder / migrations | Knex |
 | Cache | Redis (`ioredis`) — response caching (`withCache`) and idempotency keys |
 | Message broker | RabbitMQ (`amqplib` / `amqp-connection-manager`) — transactional outbox dispatch |
-| Auth | JWT access/refresh tokens (`jsonwebtoken`), `bcrypt` password hashing, httpOnly cookies |
+| Auth | JWT access/refresh tokens (`jsonwebtoken`), `bcrypt` password hashing, httpOnly cookies (falls back to an `Authorization: Bearer` header) |
 | Email | Mailjet (`node-mailjet`) — password reset OTPs, member invitations |
 | Validation | `zod` (env config), `class-validator` / `class-transformer` (request DTOs) |
 | Dependency injection | `tsyringe` |
@@ -30,7 +30,7 @@ No automated test framework (Jest/Vitest/etc.) is wired up — see [Testing](#te
 - Restaurant management: create/update restaurants, restaurant status lifecycle (`active`/`suspended`/`disabled`/`pending`).
 - Branch management per restaurant: geolocation (PostGIS `geography(Point,4326)`, generated column, GIST index), operating hours, delivery radius/fee/commission, currency, "nearby branches" lookup, active/accepting-orders toggles.
 - Product catalog: categories per restaurant, products with soft delete, and **per-branch** pricing/stock/availability (`product_branch_details`), auto-provisioned for every existing branch via a Postgres trigger when a product is created.
-- Restaurant-level RBAC: seeded roles (`owner`, `branch_manager`, `staff`) and a resource:action permission catalog (`core:*` for this service, plus an `orders`/`payments`/`deliveries`/`finance` catalog seeded for a downstream order-service), enforced via two middleware layers — restaurant/branch scoping and role-permission checks — with a `system_admin` bypass.
+- Restaurant-level RBAC: seeded roles (`owner`, `branch_manager`, `staff`) and a resource:action permission catalog (`core:*` for this service, plus `orders`/`payments`/`deliveries`/`finance` and `analytics` catalogs seeded for downstream order-service and analytics-service), enforced via two middleware layers — restaurant/branch scoping and role-permission checks — with a `system_admin` bypass.
 - Customer address book (home/office/public place types, default address flag).
 - Transactional outbox: domain mutations and their `events_outbox` row are written in the same DB transaction; a separate worker process polls and publishes to RabbitMQ with `FOR UPDATE SKIP LOCKED` so multiple workers can run concurrently without duplicate publishes.
 - Cross-cutting infra: request correlation IDs (propagated to logs and the response header), idempotency-key support for unsafe requests, Redis-backed response caching for hot internal/public reads, cursor-based pagination, a consistent `{success, data, meta}` JSON envelope, and centralized error handling that maps operational errors to their status code (including malformed-JSON body-parser errors).
@@ -381,10 +381,12 @@ npm run migrate:make <name>  # scaffold a new migration file
 Notable migrations:
 - `20260224200000_create_products_tables` also creates a Postgres trigger (`trg_product_after_insert`) that auto-inserts a `product_branch_details` row for every existing branch whenever a product is created.
 - `20260824230156_fix_currency_enum_typo` renames the `currency_enum` value `'EG'` to `'EGP'` in place (`ALTER TYPE ... RENAME VALUE`) — no data loss, just a label fix for a typo made when the type was first created.
+- `20260901000001_add_orders_reject_permission` adds the `orders:reject` permission (missing from the original `orders`/`payments`/`deliveries`/`finance` catalog) and grants it to `owner`/`branch_manager`, not `staff`.
+- `20260901000002_add_analytics_read_permission` adds the `analytics:read` permission consumed by the downstream analytics-service's RBAC middleware, and grants it to `owner`/`branch_manager`, not `staff`.
 
 ## API Endpoints
 
-All paths below are relative to the `/api` base path (e.g. `POST /auth/login` → `POST /api/auth/login`). "Auth" means the `authenticate` JWT guard; "Internal" means the `requireInternalApiKey` guard (for service-to-service calls); RBAC-checked routes additionally require restaurant/branch membership and a role permission.
+All paths below are relative to the `/api` base path (e.g. `POST /auth/login` → `POST /api/auth/login`). "Auth" means the `authenticate` JWT guard, which reads the access token from the `access_token` cookie first, falling back to an `Authorization: Bearer <token>` header for callers that can't set cookies (service-to-service calls, mobile clients, Postman/curl); "Internal" means the `requireInternalApiKey` guard (for service-to-service calls); RBAC-checked routes additionally require restaurant/branch membership and a role permission.
 
 ### Health
 

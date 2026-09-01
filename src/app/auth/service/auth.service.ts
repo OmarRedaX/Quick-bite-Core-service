@@ -70,7 +70,7 @@ export class AuthService {
                 // insert the owner member via member service
                 await this.memberService.createOwnerMember(restaurant.id, user.id, trx);
                 restaurantMemberInfo = {
-                    restaurantId: restaurant.id,
+                    restaurantId: Number(restaurant.id),
                     restaurantRole: 'owner',
                     branchIds: [],
                 };
@@ -118,7 +118,7 @@ export class AuthService {
             const branchIds = await findBranchIdsByMemberId(memberData.member.id);
             if(memberData)  {
                 restaurantMemberInfo = {
-                    restaurantId: memberData.member.restaurantId,
+                    restaurantId: Number(memberData.member.restaurantId),
                     restaurantRole: memberData.roleName,
                     branchIds,
                 }
