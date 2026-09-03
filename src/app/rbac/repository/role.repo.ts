@@ -4,6 +4,8 @@ import { Role } from "../entity/role.entity";
 
 const ROLE_COLUMNS = ['id', 'name', 'display_name', 'created_at', 'updated_at'];
 
+// Reserved for near-term use (e.g. an endpoint returning full role details);
+// findRoleByName currently only needs the id. See notes.md §3.
 function toEntity(row: any): Role {
     return new Role({
         id: row.id,

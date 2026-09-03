@@ -23,6 +23,8 @@ function camelToSnake(str: string): string {
     return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
 
+const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?$/;
+
 // createdAt: 2025-10-10 desc 10
 // select * from xxxx where xxx = yyy
 // createdAt  < 2025-10-10 order by created_at desc limit 10
@@ -34,7 +36,15 @@ export function applyCursorPagination<T>( query: Knex.QueryBuilder, params: Pagi
     const dbColumn = camelToSnake(params.sortBy);
     if(params.cursor) {
         const op = params.sortOrder === 'asc' ? '>' : '<'
-        query = query.where(dbColumn, op, params.cursor)
+        // buildPaginationResult serializes a Date cursor with .toISOString() (a
+        // 'Z'-suffixed UTC string). Comparing that string against a `timestamp`
+        // (no tz) column makes Postgres cast it through the session TimeZone
+        // first -- when that isn't UTC (this app runs with 'Africa/Cairo'), the
+        // cast silently shifts the value and corrupts the comparison. A JS Date
+        // is serialized by node-pg the same way the original insert was, so it
+        // round-trips correctly regardless of session timezone.
+        const cursorValue: string | Date = ISO_DATETIME_RE.test(params.cursor) ? new Date(params.cursor) : params.cursor;
+        query = query.where(dbColumn, op, cursorValue)
     }
     return query.orderBy(dbColumn, params.sortOrder).limit(params.limit + 1);
 }

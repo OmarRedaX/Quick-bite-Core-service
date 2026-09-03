@@ -1,5 +1,5 @@
 import {Type} from "class-transformer";
-import {IsString, IsNotEmpty, IsOptional, IsEnum, IsEmail, MinLength, MaxLength, IsStrongPassword, ValidateNested} from "class-validator";
+import {IsString, IsNotEmpty, IsOptional, IsEnum, IsEmail, MinLength, MaxLength, IsStrongPassword, ValidateNested, IsDefined} from "class-validator";
 import {RestaurantStatus} from "../enums";
 
 export class CreateRestaurantOwnerDTO {
@@ -27,6 +27,7 @@ export class CreateRestaurantOwnerDTO {
 }
 
 export class CreateRestaurantDTO {
+    @IsDefined()
     @ValidateNested()
     @Type(() => CreateRestaurantOwnerDTO)
     owner!: CreateRestaurantOwnerDTO;

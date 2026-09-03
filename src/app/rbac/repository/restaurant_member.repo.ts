@@ -79,6 +79,7 @@ export async function findMembersByRestaurantId(restaurantId: number): Promise<a
     }));
 }
 
+// Reserved for near-term use; no caller yet outside this file. See notes.md §3.
 export async function findMemberById(memberId: number, conn: Knex = db): Promise<RestaurantMember | null> {
     const row = await conn("restaurant_members").select(MEMBER_COLUMNS).where("id", memberId).first();
     return row ? toEntity(row) : null;

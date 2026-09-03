@@ -8,3 +8,12 @@ workflow
 commands.txt
 homeworkvideo5.md
 play
+.env.test
+coverage/
+coverage-unit/
+coverage-integration/
+claude.md
+implementation-plan.md
+notes.md
+testing_guide.md
+todo

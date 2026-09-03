@@ -12,6 +12,19 @@ import {
 } from "class-validator";
 import {SystemRole} from "../../user/enums";
 
+export class RegisterRestaurantDTO {
+    @IsString()
+    @MinLength(1)
+    name!: string;
+
+    @IsOptional()
+    @IsString()
+    logoURL?: string;
+
+    @IsString()
+    @MinLength(1)
+    primaryCountry!: string;
+}
 export class RegisterDTO {
     @IsEmail()
     email!: string;
@@ -81,16 +94,3 @@ export class ResetPasswordDTO {
 
 }
 
-export class RegisterRestaurantDTO {
-    @IsString()
-    @MinLength(1)
-    name!: string;
-
-    @IsOptional()
-    @IsString()
-    logoURL?: string;
-
-    @IsString()
-    @MinLength(1)
-    primaryCountry!: string;
-}

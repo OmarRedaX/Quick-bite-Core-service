@@ -39,5 +39,9 @@ export async function up(knex: Knex): Promise<void> {
 
 
 export async function down(knex: Knex): Promise<void> {
+    await knex.raw(`
+        DROP TABLE IF EXISTS restaurant_branches;
+        DROP TYPE IF EXISTS currency_enum;
+    `)
 }
 

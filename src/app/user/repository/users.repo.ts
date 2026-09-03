@@ -46,6 +46,8 @@ export async function findUserExistsByEmailOrPhone(email: string, phone: string)
     return result.rows[0].exists;
 }
 
+// Reserved for near-term use (e.g. a standalone "is this email taken"
+// check); only findUserExistsByEmailOrPhone is called today. See notes.md §3.
 export async function findUserExistsByEmail(email: string): Promise<Boolean> {
     const result = await db.raw(`
     SELECT EXISTS (SELECT 1 FROM users WHERE email = ?) AS "exists"

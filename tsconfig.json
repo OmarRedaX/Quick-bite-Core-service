@@ -10,6 +10,8 @@
     "strict": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
     "forceConsistentCasingInFileNames": false,
     "noImplicitAny": true,
     "experimentalDecorators": true,

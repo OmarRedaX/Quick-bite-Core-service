@@ -22,7 +22,7 @@ Detected from `package.json` and the `src/lib`/`src/pkg` infrastructure code:
 | Security middleware | `helmet`, `cors`, `cookie-parser` |
 | Dev tooling | `tsx` (watch mode), `eslint`, `prettier`, TypeScript compiler (`tsc`) |
 
-No automated test framework (Jest/Vitest/etc.) is wired up — see [Testing](#testing).
+Jest + ts-jest, with a two-tier unit/integration split against a real local Postgres/Redis/RabbitMQ stack — see [Testing](#testing).
 
 ## Features
 
@@ -83,13 +83,22 @@ No automated test framework (Jest/Vitest/etc.) is wired up — see [Testing](#te
 │   ├── routes.ts                     # Top-level router — mounts every feature router
 │   ├── server.ts                     # HTTP server entrypoint (API process)
 │   └── worker.ts                     # Outbox-drain worker entrypoint (separate process)
+├── tests/
+│   ├── unit/                         # Pure/isolated logic, no app or DB — one folder per module
+│   ├── integration/                  # Real createApp() + real Postgres via supertest — one folder per module
+│   │   └── flows/                    # Multi-module end-to-end business flows (onboarding, etc.)
+│   └── helpers/                      # truncateAll(), Redis cache flush, EmailStub/MessageBrokerStub, shared fixtures
+├── postman/                          # Manual QA Postman collections + run-book (see TESTING_GUIDE.md)
+├── jest.config.js                    # Unit test config (npm test)
+├── jest.integration.config.js        # Integration test config (npm run test:integration)
+├── tsconfig.test.json                # tsconfig used by ts-jest for the integration run
 ├── package.json
 ├── tsconfig.json
 ├── .env.example                      # Documented template for all environment variables
 └── README.md
 ```
 
-`play/` (ad-hoc local test scripts) is gitignored and not part of the shipped codebase.
+`play/` (ad-hoc local debug/migration scratch scripts) is gitignored and not part of the shipped codebase. Its former manual `api-test*.mjs` smoke-test scripts have been ported into the formal `tests/integration/` suite.
 
 ## Database Schema / ERD
 
@@ -360,8 +369,10 @@ Scripts as defined in `package.json`:
 | `npm run build` | `tsc` | Compile TypeScript to `dist/` |
 | `npm start` | `node dist/server.js` | Run the built API server (requires `npm run build` first) |
 | `npm run worker` | `node dist/worker.js` | Run the built outbox worker (requires `npm run build` first) |
+| `npm test` | `jest` | Run the unit test suite (see [Testing](#testing)) |
+| `npm run test:integration` | `jest --config jest.integration.config.js` | Run the integration test suite against a real local Postgres/Redis/RabbitMQ (see [Testing](#testing)) |
 
-There is no `lint` or `test` script in `package.json`, despite `eslint` and `prettier` being present as dev dependencies.
+There is no `lint` script in `package.json`, despite `eslint` and `prettier` being present as dev dependencies.
 
 The API server and the outbox worker are **separate processes** — both must be running for domain events to actually reach RabbitMQ, but only the server is needed to serve HTTP traffic. All routes are mounted under the `/api` prefix (see `src/app.ts`).
 
@@ -380,7 +391,8 @@ npm run migrate:make <name>  # scaffold a new migration file
 
 Notable migrations:
 - `20260224200000_create_products_tables` also creates a Postgres trigger (`trg_product_after_insert`) that auto-inserts a `product_branch_details` row for every existing branch whenever a product is created.
-- `20260824230156_fix_currency_enum_typo` renames the `currency_enum` value `'EG'` to `'EGP'` in place (`ALTER TYPE ... RENAME VALUE`) — no data loss, just a label fix for a typo made when the type was first created.
+- `20260824230156_fix_currency_enum_typo` renames the `currency_enum` value `'EG'` to `'EGP'` in place (`ALTER TYPE ... RENAME VALUE`) — no data loss, just a label fix for a typo made when the type was first created. Both `up`/`down` are now idempotent (guarded by a `pg_enum` existence check), so re-running migrations against a database where the rename was already applied is a no-op instead of an error.
+- `20260222221738_create_restaurant_branches_table`'s `down()` now actually drops `restaurant_branches` and `currency_enum` (it was previously a no-op, discovered while resetting the integration test database).
 - `20260901000001_add_orders_reject_permission` adds the `orders:reject` permission (missing from the original `orders`/`payments`/`deliveries`/`finance` catalog) and grants it to `owner`/`branch_manager`, not `staff`.
 - `20260901000002_add_analytics_read_permission` adds the `analytics:read` permission consumed by the downstream analytics-service's RBAC middleware, and grants it to `owner`/`branch_manager`, not `staff`.
 
@@ -482,7 +494,28 @@ Services only add a check where the middleware can't fully express the scoping (
 
 ## Testing
 
-No automated test framework (Jest/Vitest/etc.) is wired up, and there is no `test` script in `package.json`. `play/` (gitignored, local-only) is where ad-hoc DB-backed API test scripts live during development to verify the backend end-to-end against a running dev server — it is not part of the repository.
+Jest 30 + ts-jest, split into two tiers with two separate configs, both run from `package.json`:
+
+| Tier | Command | Config | What it exercises |
+|---|---|---|---|
+| Unit | `npm test` | `jest.config.js` (`roots: tests/unit`) | Pure/isolated logic only — DTO validation, pagination helpers, error classes, response helpers, etc. No app, no DB. |
+| Integration | `npm run test:integration` | `jest.integration.config.js` (`roots: tests/integration`, `maxWorkers: 1`, `forceExit: true`) | Real `createApp()` + real local Postgres (migrated fresh in `globalSetup`/torn down in `globalTeardown`) via `supertest`, with real Redis and RabbitMQ where relevant. |
+
+Current suite: **166 unit + 194 integration = 360 tests**, all passing. Merged coverage (unit + integration combined, the true view — either tier alone understates coverage for files exercised mainly by the other): **96.4% statements / 83.8% branches / 97.3% functions / 97.3% lines**.
+
+**Conventions** (see `CLAUDE.md` for the full rules the suite follows):
+- **AAA pattern** (Arrange/Act/Assert) in every test.
+- **Real internal implementations, not mocks** — integration tests hit the real service → repository → Postgres/Redis/RabbitMQ stack. The only mocks in the suite are for true externals with no safe local equivalent: `tests/helpers/email-stub.ts` (Mailjet) and `tests/helpers/message-broker-stub.ts` (used only where the outbox mechanics test itself isn't exercising the real broker — RabbitMQ is otherwise tested for real via `tests/integration/pkg/rabbitmq-client.integration.test.ts`).
+- **Isolation**: `tests/helpers/db.ts`'s `truncateAll()` runs in `beforeEach` (preserving seeded catalog tables — `roles`/`permissions`/`role_permissions` and PostGIS's `spatial_ref_sys`); `tests/helpers/redis.ts` flushes the idempotency-key and response-cache keyspaces the same way, since Redis isn't reset by truncation.
+- Each module gets one `tests/integration/<module>/*.integration.test.ts` (routes → middleware → controller → service → repository → DB) and, where there's pure logic to isolate, a matching `tests/unit/<module>/*.test.ts`. `tests/integration/flows/` covers realistic multi-module business flows (restaurant-owner onboarding, customer onboarding) rather than single endpoints.
+- Regression tests stay in the suite permanently; two real application bugs were found and fixed this way — a cursor-pagination session-timezone bug (`src/lib/http/pagination/cursor-pagination.ts`, covered by `tests/unit/lib/cursor-pagination.test.ts`) and a no-op `down()` migration (`src/migrations/20260222221738_create_restaurant_branches_table.ts`).
+
+Setup before running the integration suite:
+1. A dedicated test database (`.env.test`'s `DB_NAME`, default `quickbite_test`) — **never** point this at a dev/prod database.
+2. Local Postgres (with PostGIS), Redis, and RabbitMQ reachable with the credentials in `.env.test`.
+3. `.env.test`'s `INTERNAL_API_KEY` set, or every internal-endpoint test fails with 500.
+
+`play/` (gitignored, local-only) is where ad-hoc debug/migration scratch scripts live during development — it is not part of the repository and is no longer where API behavior gets manually verified; that now lives in the Jest suite above, plus `postman/` for manual/exploratory QA against a running dev server (see `postman/TESTING_GUIDE.md`).
 
 ## License
 
