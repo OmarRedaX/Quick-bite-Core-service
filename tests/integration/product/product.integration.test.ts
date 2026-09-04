@@ -235,6 +235,7 @@ describe("product", () => {
 
             const res = await request(app).post(`/api/internal/branches/${branch.id}/reserve-stock`)
                 .set("api-key", INTERNAL_API_KEY)
+                .set("Idempotency-Key", "test-reserve-overflow-1")
                 .send({items: [{productId: product.id, quantity: 10000}]});
 
             expect(res.status).toBe(409);
@@ -249,12 +250,14 @@ describe("product", () => {
 
             const reserve = await request(app).post(`/api/internal/branches/${branch.id}/reserve-stock`)
                 .set("api-key", INTERNAL_API_KEY)
+                .set("Idempotency-Key", "test-reserve-then-release-1")
                 .send({items: [{productId: product.id, quantity: 5}]});
             expect(reserve.status).toBe(200);
             expect(reserve.body.data.applied[0].newStock).toBe(45);
 
             const release = await request(app).post(`/api/internal/branches/${branch.id}/release-stock`)
                 .set("api-key", INTERNAL_API_KEY)
+                .set("Idempotency-Key", "test-reserve-then-release-1")
                 .send({items: [{productId: product.id, quantity: 5}]});
             expect(release.status).toBe(200);
             expect(release.body.data.applied[0].newStock).toBe(50);
@@ -263,6 +266,7 @@ describe("product", () => {
         it("rejects empty items with 400", async () => {
             const res = await request(app).post("/api/internal/branches/1/reserve-stock")
                 .set("api-key", INTERNAL_API_KEY)
+                .set("Idempotency-Key", "test-empty-items-1")
                 .send({items: []});
 
             expect(res.status).toBe(400);
@@ -274,6 +278,7 @@ describe("product", () => {
 
             const res = await request(app).post(`/api/internal/branches/${branch.id}/reserve-stock`)
                 .set("api-key", INTERNAL_API_KEY)
+                .set("Idempotency-Key", "test-unavailable-product-1")
                 .send({items: [{productId: product.id, quantity: 1}]});
 
             expect(res.status).toBe(409);
@@ -284,9 +289,51 @@ describe("product", () => {
 
             const res = await request(app).post(`/api/internal/branches/${branch.id}/reserve-stock`)
                 .set("api-key", INTERNAL_API_KEY)
+                .set("Idempotency-Key", "test-malformed-items-1")
                 .send({items: [{productId: "not-a-number", quantity: 1}]});
 
             expect(res.status).toBe(400);
+        })
+
+        it("rejects a reserve-stock/release-stock call with no Idempotency-Key header (strict mode)", async () => {
+            const {product, branch} = await setupProduct();
+
+            const reserveRes = await request(app).post(`/api/internal/branches/${branch.id}/reserve-stock`)
+                .set("api-key", INTERNAL_API_KEY)
+                .send({items: [{productId: product.id, quantity: 1}]});
+            expect(reserveRes.status).toBe(400);
+            expect(reserveRes.body.error).toMatch(/Idempotency-Key/);
+
+            const releaseRes = await request(app).post(`/api/internal/branches/${branch.id}/release-stock`)
+                .set("api-key", INTERNAL_API_KEY)
+                .send({items: [{productId: product.id, quantity: 1}]});
+            expect(releaseRes.status).toBe(400);
+            expect(releaseRes.body.error).toMatch(/Idempotency-Key/);
+        })
+
+        it("replays the cached response for a repeated Idempotency-Key instead of mutating stock twice", async () => {
+            const {product, branch, ownerAgent} = await setupProduct();
+            await ownerAgent.patch(`/api/products/${product.id}?branchId=${branch.id}`).send({price: 1000, stock: 50, isAvailable: true});
+            const key = "test-idempotent-reserve-replay-1";
+            const body = {items: [{productId: product.id, quantity: 5}]};
+
+            const first = await request(app).post(`/api/internal/branches/${branch.id}/reserve-stock`)
+                .set("api-key", INTERNAL_API_KEY)
+                .set("Idempotency-Key", key)
+                .send(body);
+            expect(first.status).toBe(200);
+            expect(first.body.data.applied[0].newStock).toBe(45);
+
+            const second = await request(app).post(`/api/internal/branches/${branch.id}/reserve-stock`)
+                .set("api-key", INTERNAL_API_KEY)
+                .set("Idempotency-Key", key)
+                .send(body);
+            expect(second.status).toBe(200);
+            expect(second.body).toEqual(first.body); // replayed from cache, not re-executed
+
+            // Stock decremented exactly once, not twice.
+            const pbd = await db("product_branch_details").where("branch_id", branch.id).where("product_id", product.id).first();
+            expect(pbd.stock).toBe(45);
         })
     })
 

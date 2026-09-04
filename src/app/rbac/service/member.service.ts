@@ -1,7 +1,7 @@
 import {Knex} from "knex";
 import {injectable, inject} from "tsyringe";
 import {TOKENS} from "../../../lib/di/tokens";
-import {IEmailProvider} from "../../../pkg/email/email.interface";
+import type {IEmailProvider} from "../../../pkg/email/email.interface";
 import {db} from "../../../lib/knex/knex";
 import {logger} from "../../../lib/logger/logger";
 import {toMs} from "../../../pkg/utils/time";

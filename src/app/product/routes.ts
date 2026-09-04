@@ -2,6 +2,7 @@ import {Router} from "express";
 import {authenticate} from "../../lib/auth/guard";
 import {rbac, requireRestaurantMember, requireBranchAccess} from "../../lib/auth/rbac";
 import {requireInternalApiKey} from "../../lib/auth/api-key";
+import {idempotency} from "../../lib/idempotency/idempotency";
 import {TOKENS} from "../../lib/di/tokens";
 import {container} from "../../lib/di/container";
 import {ProductController} from "./controller/product.controller";
@@ -35,5 +36,5 @@ productRouter.patch('/products/:id',
 
 // Internal (service-to-service)
 productRouter.get('/internal/branches/:id/products', requireInternalApiKey, productController.findByBranchAndIds);
-productRouter.post('/internal/branches/:id/reserve-stock', requireInternalApiKey, productController.reserveStock);
-productRouter.post('/internal/branches/:id/release-stock', requireInternalApiKey, productController.releaseStock);
+productRouter.post('/internal/branches/:id/reserve-stock', requireInternalApiKey, idempotency({strict: true}), productController.reserveStock);
+productRouter.post('/internal/branches/:id/release-stock', requireInternalApiKey, idempotency({strict: true}), productController.releaseStock);

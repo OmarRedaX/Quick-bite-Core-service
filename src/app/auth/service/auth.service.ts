@@ -1,7 +1,7 @@
 import {injectable, inject} from "tsyringe";
 import {TOKENS} from "../../../lib/di/tokens";
 import {logger} from "../../../lib/logger/logger";
-import {IEmailProvider} from "../../../pkg/email/email.interface";
+import type {IEmailProvider} from "../../../pkg/email/email.interface";
 import {db} from "../../../lib/knex/knex";
 import {findBranchIdsByMemberId} from "../../rbac/repository/member-branch.repo";
 import {activateMemberByUserId, findRestaurantMemberWithRole} from "../../rbac/repository/restaurant_member.repo";
