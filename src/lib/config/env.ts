@@ -1,9 +1,15 @@
 import path from 'path';
 import {config} from 'dotenv';
 import {z} from 'zod';
+import type {StringValue} from 'ms';
 
 // C:\Users\ABDULLAH\Desktop\quickbite\core-service\.env
 config({path: path.resolve(__dirname,'../../../.env')});
+
+// Matches jsonwebtoken's expiresIn format: a plain number of seconds ("3600"),
+// or a number plus unit, with or without a space ("15m", "7 days").
+const EXPIRES_IN_REGEX = /^\d+(\.\d+)?\s?[a-zA-Z]*$/;
+const expiresInMessage = "must be a number of seconds or a timespan like '15m', '7d'";
 
 const schema = z.object({
     PORT: z.string().default("3000"),
@@ -17,8 +23,8 @@ const schema = z.object({
     DB_MIGRATION_EXTENSION: z.string(),
     ACCESS_SECRET: z.string(),
     REFRESH_SECRET: z.string(),
-    ACCESS_EXPIRES_IN: z.string(),
-    REFRESH_EXPIRES_IN: z.string(),
+    ACCESS_EXPIRES_IN: z.string().regex(EXPIRES_IN_REGEX, expiresInMessage),
+    REFRESH_EXPIRES_IN: z.string().regex(EXPIRES_IN_REGEX, expiresInMessage),
     CORS_ORIGINS: z.string().default('http://localhost:3000'),
     REDIS_HOST: z.string().default('localhost'),
     REDIS_PORT: z.string().default('6379'),
@@ -56,8 +62,8 @@ export const env = {
     jwt: {
         refreshSecret: parsed.REFRESH_SECRET,
         accessSecret: parsed.ACCESS_SECRET,
-        accessExpiresIn: parsed.ACCESS_EXPIRES_IN,
-        refreshExpiresIn: parsed.REFRESH_EXPIRES_IN,
+        accessExpiresIn: parsed.ACCESS_EXPIRES_IN as StringValue,
+        refreshExpiresIn: parsed.REFRESH_EXPIRES_IN as StringValue,
     },
     isProduction: process.env.NODE_ENV === "production",
     cors: {
