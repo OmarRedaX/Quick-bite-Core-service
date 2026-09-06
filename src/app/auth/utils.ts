@@ -18,12 +18,12 @@ export interface JwtPayload {
 }
 
 export function createAccessToken(payload: JwtPayload) : string {
-    const options : SignOptions = {expiresIn: Number(env.jwt.accessExpiresIn)}
+    const options : SignOptions = {expiresIn: env.jwt.accessExpiresIn}
     return jwt.sign(payload,env.jwt.accessSecret, options);
 }
 
 export function createRefreshToken(payload: JwtPayload) : string {
-    const options : SignOptions = {expiresIn: Number(env.jwt.refreshExpiresIn)}
+    const options : SignOptions = {expiresIn: env.jwt.refreshExpiresIn}
     return jwt.sign(payload,env.jwt.refreshSecret, options);
 }
 
