@@ -24,6 +24,20 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # -------------------------------------------------------------------
+  # The RabbitMQ client suite opens a real broker connection -- it is
+  # deliberately not stubbed, so CI needs an actual broker.
+  # -------------------------------------------------------------------
+  rabbitmq:
+    image: rabbitmq:3-alpine
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      # A cold RabbitMQ container needs ~15s; 20 retries allows up to 100s.
+      retries: 20
+
   test:
     image: node:22-bookworm-slim
     working_dir: /app
@@ -48,10 +62,15 @@ services:
       MAILJET_SECRET_KEY: test
       MAILJET_FROM_EMAIL: test@example.com
       MAILJET_FROM_NAME: Test
+      # Must match INTERNAL_API_KEY in tests/helpers/fixtures.ts.
+      INTERNAL_API_KEY: test-internal-api-key
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     # Install deps, compile, then run unit and integration suites in order.
     # "set -e" stops at the first failing command so the job fails fast.
