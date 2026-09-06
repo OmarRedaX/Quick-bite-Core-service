@@ -284,7 +284,7 @@ Note: `restaurant_branches.currency` is declared `VARCHAR(255)` at the column le
 - **Redis** — used for response caching and idempotency keys.
 - **RabbitMQ** — used by the outbox worker (`src/worker.ts`); the API server itself does not require it to serve HTTP requests.
 - **Mailjet account** — required for password-reset and member-invite emails to actually send.
-- No `Dockerfile` or `docker-compose.yml` was found in this repository — all of the above must be run/installed directly (or via your own containers).
+- **Docker** (optional) — [`docker-compose.yml`](./docker-compose.yml) brings up Postgres/PostGIS, Redis, RabbitMQ, the API server and the outbox worker together, so none of the above has to be installed on the host. See [Running with Docker](#running-with-docker).
 
 ## Installation & Setup
 
@@ -376,7 +376,29 @@ There is no `lint` script in `package.json`, despite `eslint` and `prettier` bei
 
 The API server and the outbox worker are **separate processes** — both must be running for domain events to actually reach RabbitMQ, but only the server is needed to serve HTTP traffic. All routes are mounted under the `/api` prefix (see `src/app.ts`).
 
-No `Dockerfile`/`docker-compose.yml` exists in this repo, so there is no containerized run path to document — run the two processes directly with the commands above against your own Postgres/Redis/RabbitMQ instances.
+## Running with Docker
+
+Two compose files, each with a single job.
+
+**[`docker-compose.yml`](./docker-compose.yml) — the full dev stack.** Postgres/PostGIS, Redis and RabbitMQ, plus the API server (`core-service`) and the outbox worker (`core-worker`) built from the [`Dockerfile`](./Dockerfile):
+
+```bash
+cp .env.example .env   # env_file: the app containers read .env
+docker compose up --build
+# API on http://localhost:3000, RabbitMQ management UI on http://localhost:15672
+```
+
+The compose file overrides the host-facing values in `.env` (`DB_HOST`, `REDIS_HOST`, `RABBITMQ_URL`) with the compose service names, so the same `.env` works whether you run natively or in containers. `scripts/docker/01-init.sql` creates the `quickbite_core` database on first boot; migrations are *not* run automatically — run them once the stack is up:
+
+```bash
+npm run migrate   # from the host — Postgres publishes 5432, and .env's DB_HOST=localhost
+```
+
+(The runtime image is built with `npm ci --omit=dev`, so it has no `ts-node`/`typescript` to run the TypeScript knexfile the `migrate` script points at — hence migrating from the host rather than inside the container.)
+
+The Postgres service uses `postgis/postgis:16-3.4` rather than the stock `postgres:16` image, because `20260222221738_create_restaurant_branches_table` runs `CREATE EXTENSION IF NOT EXISTS postgis`.
+
+**[`docker-compose.test.yml`](./docker-compose.test.yml) — the test stack.** See [Continuous Integration](#continuous-integration).
 
 ## Running Migrations
 
@@ -516,6 +538,35 @@ Setup before running the integration suite:
 3. `.env.test`'s `INTERNAL_API_KEY` set, or every internal-endpoint test fails with 500.
 
 `play/` (gitignored, local-only) is where ad-hoc debug/migration scratch scripts live during development — it is not part of the repository and is no longer where API behavior gets manually verified; that now lives in the Jest suite above, plus `postman/` for manual/exploratory QA against a running dev server (see `postman/TESTING_GUIDE.md`).
+
+## Continuous Integration
+
+[`.github/workflows/ci.yml`](./.github/workflows/ci.yml) runs on every push and pull request to `main`/`develop`, and on manual dispatch. The workflow itself is deliberately thin — checkout, then:
+
+```bash
+docker compose -f docker-compose.test.yml run --rm test
+docker compose -f docker-compose.test.yml down -v   # always, even on failure
+```
+
+All of the actual work lives in [`docker-compose.test.yml`](./docker-compose.test.yml), so **CI and a local run are the same command** — there is no CI-only setup that can drift from what you can reproduce on your machine:
+
+| Service | Image | Why |
+| --- | --- | --- |
+| `postgres` | `postgis/postgis:16-3.4` | A migration runs `CREATE EXTENSION postgis`, which the stock `postgres:16` image can't satisfy. Database: `quickbite_core_test`. |
+| `redis` | `redis:7-alpine` | Response cache + idempotency keys — used for real, not stubbed. |
+| `rabbitmq` | `rabbitmq:3-alpine` | `tests/integration/pkg/rabbitmq-client.integration.test.ts` opens a real broker connection. Given 20 health-check retries because a cold broker needs ~15s. |
+| `test` | `node:22-bookworm-slim` | Runs `npm ci && npm run build && npm test && npm run test:integration` under `sh -e`, so the job fails at the first failing step. |
+
+Test configuration comes from the compose file's `environment:` block rather than `.env.test` — that file is gitignored, so it doesn't exist in a fresh CI checkout and `tests/setup-env.ts`'s `dotenv` call is a no-op there. Anything a test depends on (notably `INTERNAL_API_KEY`, which must match `tests/helpers/fixtures.ts`) has to be declared in the compose file.
+
+To reproduce a CI failure locally, run the exact same command — no GitHub Actions runner needed:
+
+```bash
+docker compose -f docker-compose.test.yml run --rm test
+docker compose -f docker-compose.test.yml down -v
+```
+
+There is no deploy/publish stage: CI builds and tests, and nothing is pushed to a registry.
 
 ## License
 

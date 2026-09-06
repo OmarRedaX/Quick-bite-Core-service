@@ -1,6 +1,9 @@
 services:
   postgres:
-    image: postgres:16
+    # PostGIS, not plain postgres:16 — 20260222221738_create_restaurant_branches_table
+    # runs `CREATE EXTENSION IF NOT EXISTS postgis`, which the stock image can't
+    # satisfy. Same image docker-compose.test.yml uses.
+    image: postgis/postgis:16-3.4
     container_name: quickbite_core_postgres
     restart: unless-stopped
     environment:
