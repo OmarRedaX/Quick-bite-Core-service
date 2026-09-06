@@ -45,6 +45,14 @@ const schema = z.object({
     OUTBOX_BATCH_SIZE: z.string().default("50"),
 });
 
+// jsonwebtoken reads expiresIn by TYPE: a number means seconds, but a numeric
+// STRING goes through ms(), which reads bare digits as milliseconds -- so "3600"
+// would sign a 3.6-second token, not a one-hour one. Normalize here so both
+// "3600" and "15m" mean what they look like.
+function toExpiresIn(value: string): number | StringValue {
+    return /^\d+$/.test(value) ? Number(value) : (value as StringValue);
+}
+
 const parsed = schema.parse(process.env);
 
 export const env = {
@@ -62,8 +70,8 @@ export const env = {
     jwt: {
         refreshSecret: parsed.REFRESH_SECRET,
         accessSecret: parsed.ACCESS_SECRET,
-        accessExpiresIn: parsed.ACCESS_EXPIRES_IN as StringValue,
-        refreshExpiresIn: parsed.REFRESH_EXPIRES_IN as StringValue,
+        accessExpiresIn: toExpiresIn(parsed.ACCESS_EXPIRES_IN),
+        refreshExpiresIn: toExpiresIn(parsed.REFRESH_EXPIRES_IN),
     },
     isProduction: process.env.NODE_ENV === "production",
     cors: {
