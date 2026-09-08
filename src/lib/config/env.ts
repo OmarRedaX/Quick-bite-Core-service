@@ -43,6 +43,23 @@ const schema = z.object({
     // Cron expression for the outbox drain schedule. 6-field form; "* * * * * *" = every second.
     OUTBOX_DRAIN_CRON: z.string().default("* * * * * *"),
     OUTBOX_BATCH_SIZE: z.string().default("50"),
+
+    // AWS S3 (media uploads). Blank credentials are intentional: they let the
+    // SDK fall back to its default provider chain (IAM role) in deployed
+    // environments, and keep the schema parseable in test/CI where no bucket exists.
+    AWS_REGION: z.string().default("us-east-1"),
+    AWS_S3_BUCKET: z.string().default(""),
+    AWS_ACCESS_KEY_ID: z.string().default(""),
+    AWS_SECRET_ACCESS_KEY: z.string().default(""),
+    // Serve objects from a CDN/custom domain instead of the raw bucket URL.
+    S3_PUBLIC_BASE_URL: z.string().default(""),
+    // S3-compatible endpoint for local dev (MinIO/LocalStack); blank = real AWS.
+    S3_ENDPOINT: z.string().default(""),
+    S3_FORCE_PATH_STYLE: z.string().default("false"),
+    // How long a presigned upload URL stays valid.
+    MEDIA_UPLOAD_URL_TTL: z.string().default("900"),
+    // Rejected on finalize (a presigned PUT can't cap size up front).
+    MEDIA_MAX_UPLOAD_BYTES: z.string().default("5242880"),
 });
 
 // jsonwebtoken reads expiresIn by TYPE: a number means seconds, but a numeric
@@ -97,5 +114,16 @@ export const env = {
         exchange: parsed.RABBITMQ_CORE_EVENTS_EXCHANGE,
         drainCron: parsed.OUTBOX_DRAIN_CRON,
         batchSize: Number(parsed.OUTBOX_BATCH_SIZE),
+    },
+    storage: {
+        region: parsed.AWS_REGION,
+        bucket: parsed.AWS_S3_BUCKET,
+        accessKeyId: parsed.AWS_ACCESS_KEY_ID,
+        secretAccessKey: parsed.AWS_SECRET_ACCESS_KEY,
+        publicBaseUrl: parsed.S3_PUBLIC_BASE_URL,
+        endpoint: parsed.S3_ENDPOINT,
+        forcePathStyle: parsed.S3_FORCE_PATH_STYLE === "true",
+        uploadUrlTtlSeconds: Number(parsed.MEDIA_UPLOAD_URL_TTL),
+        maxUploadBytes: Number(parsed.MEDIA_MAX_UPLOAD_BYTES),
     },
 }

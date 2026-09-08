@@ -7,6 +7,7 @@ import {restaurantRouter} from "./app/restaurant/routes";
 import {userRouter} from "./app/user/routes";
 import {customerAddressRouter} from "./app/customer-address/routes";
 import {productRouter} from "./app/product/routes";
+import {mediaRouter} from "./app/media/routes";
 
 export const routes = Router();
 
@@ -15,6 +16,7 @@ routes.use('/user', userRouter)
 routes.use('/auth', authRouter);
 routes.use('/customer/addresses', customerAddressRouter);
 routes.use('/restaurants', restaurantRouter)
+routes.use('/media', mediaRouter)
 routes.use('/', branchRouter)
 routes.use('/', productRouter)
 routes.use('/', rbacRouter)

@@ -64,6 +64,10 @@ services:
       MAILJET_FROM_NAME: Test
       # Must match INTERNAL_API_KEY in tests/helpers/fixtures.ts.
       INTERNAL_API_KEY: test-internal-api-key
+      AWS_REGION: us-east-1
+      AWS_S3_BUCKET: quickbite-test-media
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
     depends_on:
       postgres:

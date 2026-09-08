@@ -1,6 +1,6 @@
 # Core Service (Quick Bite)
 
-Backend core service for the Quick Bite food-delivery platform. It owns users & auth, restaurants, branches, the product catalog (with per-branch pricing/stock), customer addresses, and restaurant-level RBAC (roles/permissions/members). It publishes domain events through a transactional outbox to RabbitMQ so other services (e.g. an order-service) can react to changes, and exposes a set of internal, API-key-protected endpoints for service-to-service reads.
+Backend core service for the Quick Bite food-delivery platform. It owns users & auth, restaurants, branches, the product catalog (with per-branch pricing/stock), customer addresses, restaurant-level RBAC (roles/permissions/members), and media uploads (presigned direct-to-S3 URLs for product images and restaurant logos). It publishes domain events through a transactional outbox to RabbitMQ so other services (e.g. an order-service) can react to changes, and exposes a set of internal, API-key-protected endpoints for service-to-service reads.
 
 ## Tech Stack
 
@@ -16,6 +16,7 @@ Detected from `package.json` and the `src/lib`/`src/pkg` infrastructure code:
 | Message broker | RabbitMQ (`amqplib` / `amqp-connection-manager`) — transactional outbox dispatch |
 | Auth | JWT access/refresh tokens (`jsonwebtoken`), `bcrypt` password hashing, httpOnly cookies (falls back to an `Authorization: Bearer` header) |
 | Email | Mailjet (`node-mailjet`) — password reset OTPs, member invitations |
+| Object storage | AWS S3 (`@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner`) — presigned direct-to-S3 media uploads |
 | Validation | `zod` (env config), `class-validator` / `class-transformer` (request DTOs) |
 | Dependency injection | `tsyringe` |
 | Scheduling | `croner` (outbox drain cron job in the worker process) |
@@ -30,6 +31,7 @@ Jest + ts-jest, with a two-tier unit/integration split against a real local Post
 - Restaurant management: create/update restaurants, restaurant status lifecycle (`active`/`suspended`/`disabled`/`pending`).
 - Branch management per restaurant: geolocation (PostGIS `geography(Point,4326)`, generated column, GIST index), operating hours, delivery radius/fee/commission, currency, "nearby branches" lookup, active/accepting-orders toggles.
 - Product catalog: categories per restaurant, products with soft delete, and **per-branch** pricing/stock/availability (`product_branch_details`), auto-provisioned for every existing branch via a Postgres trigger when a product is created.
+- Media uploads to S3 via presigned PUT URLs: the API issues a short-lived upload URL and a `media` row (`pending`), the client uploads the bytes straight to S3, and a finalize call confirms the object and size (`ready`) — file data never passes through this service. Restricted to `system_admin` and restaurant users (`core:media:*`). The returned URL is what `imageUrl` on a product and `logoUrl` on a restaurant expect.
 - Restaurant-level RBAC: seeded roles (`owner`, `branch_manager`, `staff`) and a resource:action permission catalog (`core:*` for this service, plus `orders`/`payments`/`deliveries`/`finance` and `analytics` catalogs seeded for downstream order-service and analytics-service), enforced via two middleware layers — restaurant/branch scoping and role-permission checks — with a `system_admin` bypass.
 - Customer address book (home/office/public place types, default address flag).
 - Transactional outbox: domain mutations and their `events_outbox` row are written in the same DB transaction; a separate worker process polls and publishes to RabbitMQ with `FOR UPDATE SKIP LOCKED` so multiple workers can run concurrently without duplicate publishes.
@@ -53,6 +55,7 @@ Jest + ts-jest, with a two-tier unit/integration split against a real local Post
 │   │   ├── branch/                   # Restaurant branches (location, hours, delivery settings)
 │   │   ├── customer-address/         # Customer saved addresses
 │   │   ├── health/                   # DB health check endpoint
+│   │   ├── media/                    # Presigned S3 uploads for product images / restaurant logos
 │   │   ├── product/                  # Products, categories, per-branch price/stock
 │   │   ├── rbac/                     # Roles, permissions, restaurant members, member-branch assignment
 │   │   ├── restaurant/               # Restaurants (owner, status lifecycle)
@@ -70,6 +73,7 @@ Jest + ts-jest, with a two-tier unit/integration split against a real local Post
 │   │   ├── idempotency/              # Idempotency-Key middleware
 │   │   ├── knex/                     # Knex instance + knexfile (migrations config)
 │   │   ├── logger/                   # Logger
+│   │   ├── storage/                  # S3 storage provider init
 │   │   ├── types/                    # Express type augmentations (req.user, req.correlationId)
 │   │   ├── utils/                    # Cookie helpers
 │   │   └── validation/               # DTO validation helper
@@ -78,6 +82,7 @@ Jest + ts-jest, with a two-tier unit/integration split against a real local Post
 │   │   ├── cache/                    # ICacheProvider + Redis implementation
 │   │   ├── email/                    # IEmailProvider + Mailjet implementation
 │   │   ├── messaging/                # IMessageBroker + RabbitMQ implementation
+│   │   ├── storage/                  # IStorageProvider + AWS S3 implementation
 │   │   └── utils/                    # Time helpers
 │   ├── app.ts                        # Express app assembly (middleware, /api mount)
 │   ├── routes.ts                     # Top-level router — mounts every feature router
@@ -87,7 +92,7 @@ Jest + ts-jest, with a two-tier unit/integration split against a real local Post
 │   ├── unit/                         # Pure/isolated logic, no app or DB — one folder per module
 │   ├── integration/                  # Real createApp() + real Postgres via supertest — one folder per module
 │   │   └── flows/                    # Multi-module end-to-end business flows (onboarding, etc.)
-│   └── helpers/                      # truncateAll(), Redis cache flush, EmailStub/MessageBrokerStub, shared fixtures
+│   └── helpers/                      # truncateAll(), Redis cache flush, EmailStub/MessageBrokerStub/StorageStub, shared fixtures
 ├── postman/                          # Manual QA Postman collections + run-book (see TESTING_GUIDE.md)
 ├── jest.config.js                    # Unit test config (npm test)
 ├── jest.integration.config.js        # Integration test config (npm run test:integration)
@@ -255,6 +260,19 @@ erDiagram
         text last_error "nullable"
     }
 
+    media {
+        bigserial id PK
+        bigint restaurant_id FK "nullable - admin upload before the restaurant exists"
+        bigint uploaded_by FK
+        text storage_key UK "object key in the S3 bucket"
+        text url "public/CDN URL the object is served from"
+        text content_type
+        bigint size_bytes "nullable until the upload is finalized"
+        text status "pending | ready | failed | deleted"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     users ||--o{ password_resets : "requests"
     users ||--o{ customer_addresses : "owns"
     users ||--o{ restaurants : "owns (owner_id)"
@@ -263,6 +281,8 @@ erDiagram
     restaurants ||--o{ product_categories : "has"
     restaurants ||--o{ products : "has"
     restaurants ||--o{ restaurant_members : "employs"
+    restaurants ||--o{ media : "owns uploaded media"
+    users ||--o{ media : "uploaded (uploaded_by)"
     product_categories ||--o{ products : "categorizes"
     products ||--o{ product_branch_details : "priced/stocked per branch"
     restaurant_branches ||--o{ product_branch_details : "stocks"
@@ -354,9 +374,22 @@ RABBITMQ_URL=amqp://guest:guest@localhost:5672     # RabbitMQ connection string 
 RABBITMQ_CORE_EVENTS_EXCHANGE=core.events          # Exchange the outbox worker publishes domain events to
 OUTBOX_DRAIN_CRON=* * * * * *                      # 6-field cron expression for the outbox drain schedule (every second by default)
 OUTBOX_BATCH_SIZE=50                               # Max rows claimed per outbox drain batch
+
+# AWS S3 (media uploads: product images, restaurant logos)
+AWS_REGION=us-east-1                               # AWS region the media bucket lives in
+AWS_S3_BUCKET=quickbite-media                      # S3 bucket presigned upload URLs are issued for
+AWS_ACCESS_KEY_ID=                                 # Blank = use the SDK's default credential chain (IAM role)
+AWS_SECRET_ACCESS_KEY=                             # Blank = use the SDK's default credential chain (IAM role)
+S3_PUBLIC_BASE_URL=                                # CDN/custom domain objects are served from, e.g. https://dxxxxxxxxxxxxx.cloudfront.net (blank = bucket URL)
+S3_ENDPOINT=                                       # S3-compatible endpoint for local dev (MinIO/LocalStack); blank = real AWS
+S3_FORCE_PATH_STYLE=false                          # true for MinIO/LocalStack, false for real S3
+MEDIA_UPLOAD_URL_TTL=900                           # Seconds a presigned upload URL stays valid
+MEDIA_MAX_UPLOAD_BYTES=5242880                     # Max upload size, enforced when the upload is finalized (5 MB)
 ```
 
 `DB_PASSWORD`, `DB_NAME`, `ACCESS_SECRET`, `REFRESH_SECRET`, `ACCESS_EXPIRES_IN`, `REFRESH_EXPIRES_IN`, `DB_MIGRATION_DIRECTORY`, `DB_MIGRATION_EXTENSION`, `MAILJET_API_KEY`, `MAILJET_SECRET_KEY`, `MAILJET_FROM_EMAIL`, and `MAILJET_FROM_NAME` have no default in `env.ts` and **must** be set or the process will fail to start (zod schema validation).
+
+Every `AWS_*`/`S3_*`/`MEDIA_*` variable *does* have a default, so the process starts without them — deliberately, so tests and CI (which stub S3 entirely) need no bucket. The consequence is that a missing `AWS_S3_BUCKET` is not a startup error: it defaults to `""` and the media endpoints fail at call time instead. Set it in any environment where uploads are meant to work. Leaving `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` blank is the *intended* production setup — blank credentials make the SDK fall back to its default provider chain (an EC2/ECS IAM role) rather than static keys.
 
 ## Running the App
 
@@ -417,6 +450,8 @@ Notable migrations:
 - `20260222221738_create_restaurant_branches_table`'s `down()` now actually drops `restaurant_branches` and `currency_enum` (it was previously a no-op, discovered while resetting the integration test database).
 - `20260901000001_add_orders_reject_permission` adds the `orders:reject` permission (missing from the original `orders`/`payments`/`deliveries`/`finance` catalog) and grants it to `owner`/`branch_manager`, not `staff`.
 - `20260901000002_add_analytics_read_permission` adds the `analytics:read` permission consumed by the downstream analytics-service's RBAC middleware, and grants it to `owner`/`branch_manager`, not `staff`.
+- `20260906000001_create_media_table` creates the `media` table. `restaurant_id` is nullable (`ON DELETE SET NULL`) because a system admin uploads a restaurant logo *before* `POST /restaurants` creates the row it would reference; `storage_key` is `UNIQUE`, and `status` is a `CHECK` constraint (`pending`/`ready`/`failed`/`deleted`) rather than a Postgres enum.
+- `20260906000002_add_media_permissions` adds `core:media` `create`/`read`/`delete`. The grants are explicit because `20260327014716_seed_rbac_data`'s "owner gets every permission" insert already ran and only covered the permissions that existed then — so a later permission is granted to nobody unless its own migration says so.
 
 ## API Endpoints
 
@@ -493,6 +528,41 @@ All paths below are relative to the `/api` base path (e.g. `POST /auth/login` �
 | POST | `/internal/branches/:id/reserve-stock` | Reserve stock for an order *(Internal)* |
 | POST | `/internal/branches/:id/release-stock` | Release previously reserved stock *(Internal)* |
 
+### Media
+
+All four routes are authenticated and behind `rbac()`, which admits only `system_admin` (bypass) and restaurant users holding the permission — customers and delivery agents are rejected outright.
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/media/uploads` | Reserve an object key and return a presigned upload URL *(Auth + `core:media:create`)* |
+| POST | `/media/:id/complete` | Confirm the upload landed and mark it `ready` *(Auth + `core:media:create`)* |
+| GET | `/media/:id` | Get a media record *(Auth + `core:media:read`)* |
+| DELETE | `/media/:id` | Delete the object and mark the row `deleted` *(Auth + `core:media:delete`)* |
+
+Permission grants (from `20260906000002_add_media_permissions.ts`): `owner` gets create/read/delete, `branch_manager` gets create/read (it manages products and so needs to attach images, but destructive actions stay with the owner), `staff` gets none.
+
+**Upload flow** — two calls plus a direct-to-S3 PUT:
+
+```bash
+# 1. Ask for an upload URL (restaurant users are pinned to their own restaurant;
+#    a system_admin may pass restaurantId, or omit it for a logo uploaded before
+#    the restaurant exists).
+curl -X POST http://localhost:3000/api/media/uploads   -H 'Content-Type: application/json' -b cookies.txt   -d '{"contentType":"image/png","fileName":"burger.png"}'
+# -> {"success":true,"data":{"media":{"id":12,"storageKey":"restaurants/3/2026/09/<uuid>-burger.png",
+#     "url":"https://<bucket>.s3.<region>.amazonaws.com/restaurants/3/...","status":"pending",...},
+#     "uploadUrl":"https://...X-Amz-Signature=...","expiresIn":900}}
+
+# 2. Upload the bytes straight to S3. Content-Type is signed into the URL, so it
+#    must match the contentType from step 1 exactly.
+curl -X PUT "<uploadUrl>" -H 'Content-Type: image/png' --data-binary @burger.png
+
+# 3. Finalize — verifies the object exists and is within MEDIA_MAX_UPLOAD_BYTES.
+curl -X POST http://localhost:3000/api/media/12/complete -b cookies.txt
+# -> {"success":true,"data":{"media":{"id":12,"status":"ready","sizeBytes":83214,...}}}
+```
+
+`media.url` from the response is then passed straight through as `imageUrl` when creating/updating a product, or as `logoUrl` on a restaurant. It is built from `S3_PUBLIC_BASE_URL` when that is set (a CloudFront/custom domain) and from the bucket's own URL otherwise — the presigned `uploadUrl` always targets the S3 origin either way, since a CDN distribution does not accept the signed PUT. Allowed types: `image/jpeg`, `image/png`, `image/webp`, `image/gif`, `image/avif` (415 otherwise). Finalizing before the file was uploaded returns 409; an object over the size cap returns 413, is deleted from the bucket, and the row is marked `failed`.
+
 ### RBAC (Roles / Permissions / Members)
 
 | Method | Path | Purpose |
@@ -512,6 +582,8 @@ Two layers, applied in order on every protected route:
 1. **Scoping middleware** (`src/lib/auth/rbac.ts`) — `requireRestaurantMember` confirms the caller belongs to the restaurant in the URL; `requireBranchAccess` confirms a non-owner is explicitly assigned to the target branch (via `member_branches`), with owner/system_admin bypasses.
 2. **Permission middleware** — `rbac({resource, action})` checks the caller's restaurant role (`owner` / `branch_manager` / `staff`) against the `roles` / `permissions` / `role_permissions` tables, with a system_admin bypass.
 
+`rbac.ts` also exports `resolveOwningRestaurantId`, for handlers whose target restaurant arrives in the **body** rather than the URL — `requireRestaurantMember` reads a route param and so can't scope them. `POST /media/uploads` is the current caller. It resolves the restaurant the created row will *belong to*, never the caller's identity (who acted is recorded separately, as `media.uploaded_by`): a `system_admin` may name any restaurant or none, while a restaurant user may only name their own — naming a different one is a 403 rather than being silently rewritten, and omitting it falls back to theirs.
+
 Services only add a check where the middleware can't fully express the scoping (e.g. `PATCH /products/:id` carries no restaurant id in the URL, and a branchless update skips the branch check entirely) — that check compares the caller's own restaurant membership against the resource's restaurant, never a literal "must be the owner" rule, so `branch_manager`/`staff` get exactly what `role_permissions` grants them instead of being silently restricted to the owner. See `branch.service.ts::update` and `product.service.ts::create/findByRestaurant/update` for the reasoning inline.
 
 ## Testing
@@ -523,11 +595,13 @@ Jest 30 + ts-jest, split into two tiers with two separate configs, both run from
 | Unit | `npm test` | `jest.config.js` (`roots: tests/unit`) | Pure/isolated logic only — DTO validation, pagination helpers, error classes, response helpers, etc. No app, no DB. |
 | Integration | `npm run test:integration` | `jest.integration.config.js` (`roots: tests/integration`, `maxWorkers: 1`, `forceExit: true`) | Real `createApp()` + real local Postgres (migrated fresh in `globalSetup`/torn down in `globalTeardown`) via `supertest`, with real Redis and RabbitMQ where relevant. |
 
-Current suite: **166 unit + 194 integration = 360 tests**, all passing. Merged coverage (unit + integration combined, the true view — either tier alone understates coverage for files exercised mainly by the other): **96.4% statements / 83.8% branches / 97.3% functions / 97.3% lines**.
+Current suite: **177 unit + 231 integration = 408 tests**, all passing. Merged coverage (unit + integration combined, the true view — either tier alone understates coverage for files exercised mainly by the other): **95.9% statements / 82.8% branches / 95.5% functions / 96.8% lines**.
+
+That is slightly below the previous figure, and the whole difference is one file: `src/pkg/storage/s3.ts` sits at **33% statements / 17% functions**. Every layer above it is fully covered (`src/app/media/**` is at 100% statements), but the AWS SDK adapter itself is stubbed out in tests the same way Mailjet is, so only its constructor runs. Unlike `pkg/email/mailjet.ts` — a thin enough wrapper to reach 100% incidentally — it holds real logic that nothing currently asserts: `statObject`'s `NotFound`→`null` mapping, `getPublicUrl`'s per-segment encoding, and `defaultPublicBaseUrl`'s path-style/CDN branches. Those are pure functions of their inputs and could be unit-tested without touching AWS; it hasn't been done yet.
 
 **Conventions** (see `CLAUDE.md` for the full rules the suite follows):
 - **AAA pattern** (Arrange/Act/Assert) in every test.
-- **Real internal implementations, not mocks** — integration tests hit the real service → repository → Postgres/Redis/RabbitMQ stack. The only mocks in the suite are for true externals with no safe local equivalent: `tests/helpers/email-stub.ts` (Mailjet) and `tests/helpers/message-broker-stub.ts` (used only where the outbox mechanics test itself isn't exercising the real broker — RabbitMQ is otherwise tested for real via `tests/integration/pkg/rabbitmq-client.integration.test.ts`).
+- **Real internal implementations, not mocks** — integration tests hit the real service → repository → Postgres/Redis/RabbitMQ stack. The only mocks in the suite are for true externals with no safe local equivalent: `tests/helpers/email-stub.ts` (Mailjet), `tests/helpers/storage-stub.ts` (AWS S3), and `tests/helpers/message-broker-stub.ts` (used only where the outbox mechanics test itself isn't exercising the real broker — RabbitMQ is otherwise tested for real via `tests/integration/pkg/rabbitmq-client.integration.test.ts`). Each is a class implementing the provider interface, swapped in with `jest.mock` on the matching `src/lib/*/init` module before `createApp()`. `StorageStub` keeps an in-memory bucket and records what was signed and deleted, so a test can simulate the client-side PUT (`putObject`) that would otherwise happen straight against S3 — the media service, repository and Postgres underneath it are all real.
 - **Isolation**: `tests/helpers/db.ts`'s `truncateAll()` runs in `beforeEach` (preserving seeded catalog tables — `roles`/`permissions`/`role_permissions` and PostGIS's `spatial_ref_sys`); `tests/helpers/redis.ts` flushes the idempotency-key and response-cache keyspaces the same way, since Redis isn't reset by truncation.
 - Each module gets one `tests/integration/<module>/*.integration.test.ts` (routes → middleware → controller → service → repository → DB) and, where there's pure logic to isolate, a matching `tests/unit/<module>/*.test.ts`. `tests/integration/flows/` covers realistic multi-module business flows (restaurant-owner onboarding, customer onboarding) rather than single endpoints.
 - Regression tests stay in the suite permanently; two real application bugs were found and fixed this way — a cursor-pagination session-timezone bug (`src/lib/http/pagination/cursor-pagination.ts`, covered by `tests/unit/lib/cursor-pagination.test.ts`) and a no-op `down()` migration (`src/migrations/20260222221738_create_restaurant_branches_table.ts`).
@@ -536,6 +610,8 @@ Setup before running the integration suite:
 1. A dedicated test database (`.env.test`'s `DB_NAME`, default `quickbite_test`) — **never** point this at a dev/prod database.
 2. Local Postgres (with PostGIS), Redis, and RabbitMQ reachable with the credentials in `.env.test`.
 3. `.env.test`'s `INTERNAL_API_KEY` set, or every internal-endpoint test fails with 500.
+
+No AWS account, bucket or credentials are needed: S3 is stubbed. `.env.test` still sets `AWS_*`/`MEDIA_*` (with `MEDIA_MAX_UPLOAD_BYTES=5242880`, which the media tests assert against) because the service reads `env.storage` for the URL TTL and size cap even when the provider itself is a stub.
 
 `play/` (gitignored, local-only) is where ad-hoc debug/migration scratch scripts live during development — it is not part of the repository and is no longer where API behavior gets manually verified; that now lives in the Jest suite above, plus `postman/` for manual/exploratory QA against a running dev server (see `postman/TESTING_GUIDE.md`).
 
@@ -557,7 +633,7 @@ All of the actual work lives in [`docker-compose.test.yml`](./docker-compose.tes
 | `rabbitmq` | `rabbitmq:3-alpine` | `tests/integration/pkg/rabbitmq-client.integration.test.ts` opens a real broker connection. Given 20 health-check retries because a cold broker needs ~15s. |
 | `test` | `node:22-bookworm-slim` | Runs `npm ci && npm run build && npm test && npm run test:integration` under `sh -e`, so the job fails at the first failing step. |
 
-Test configuration comes from the compose file's `environment:` block rather than `.env.test` — that file is gitignored, so it doesn't exist in a fresh CI checkout and `tests/setup-env.ts`'s `dotenv` call is a no-op there. Anything a test depends on (notably `INTERNAL_API_KEY`, which must match `tests/helpers/fixtures.ts`) has to be declared in the compose file.
+Test configuration comes from the compose file's `environment:` block rather than `.env.test` — that file is gitignored, so it doesn't exist in a fresh CI checkout and `tests/setup-env.ts`'s `dotenv` call is a no-op there. Anything a test depends on (notably `INTERNAL_API_KEY`, which must match `tests/helpers/fixtures.ts`) has to be declared in the compose file. The `AWS_*` values there are placeholders — the media tests stub S3, so nothing in CI reaches a real bucket; they exist only so `env.ts` parses and `storageProvider` constructs.
 
 To reproduce a CI failure locally, run the exact same command — no GitHub Actions runner needed:
 
